@@ -4,7 +4,6 @@ import argparse
 from normalform import normal_form
 
 # FUNCTIONS
-
 def _fix_literal(lit):
     assert isinstance(lit, str)
     # weird -0 notation
@@ -86,11 +85,6 @@ def read_clauses(trans):
 
     return numlits, numclauses, clauses
 
-def read_proof(trans):
-    for line in trans.split("\n"):
-        if line[-3:] == "0 0":
-            pass
-        # TODO finish this function
 # END FUNCTIONS
 
 parser = argparse.ArgumentParser(description='Read CNF from CVC4 Output')
