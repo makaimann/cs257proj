@@ -4,11 +4,32 @@ import argparse
 from prims import Lit, Clause
 from collections import namedtuple
 
-def read_proof(log):
-    for line in log.split("\n"):
-        if line[-3:] == "0 0":
-            pass
-        # TODO finish this function
+# def read_proof(log):
+#     for line in log.split("\n"):
+#         if line[-3:] == "0 0":
+#             pass
+#         # TODO finish this function
+
+def read_tracecheck(resproof):
+    marker = ' 0 '
+    clausemap = {}
+    learned_clauses = []
+    resolvent_parents = []
+    for line in resproof.split('\n'):
+        s1 = line.find(' ')
+        _id = int(line[:s1])
+        line = line[s1+1:]
+        z1 = line.find(marker)
+        z2 = line[z1+len(marker):].find(marker)
+        rlits = line[:z1].split()
+        resolvent = Clause([Lit(int(rl)) for rl in rlits])
+        clausemap[_id] = resolvent
+        if ' 0 0' not in line:
+            parent_ids = line[z1+1:z2].split()
+            parents = tuple([clausemap[int(i) for i in parent_ids]])
+            learned_clauses.append(resolvent)
+            resolvent_parents.append(parents)
+    return learned_clauses, resolvent_parents
 
 def read_picolog(log):
     reason = namedtuple("reason", "lit level clause")
@@ -18,13 +39,25 @@ def read_picolog(log):
     cassig_by = " by "
     cconfl = "c conflict "
     clearn = "c learned "
+    clvl = "c new level "
+    cbt  = "c back to level "
     end_clause = " 0\n" # assuming at end of line
     clauses = []
     reasons = []
     learned_clauses = []
+    lit2lvl = {}
 
     conflict = None # only process one conflict at a time
     tconfl = 0
+
+    dl = 0
+    llidx = 0 # last level idx
+    idxmap = {0: 0} # need to keep track of previous llidx's
+
+    matchlearned = 0
+    matchorig = 0
+    numconflicts = 0
+    derived_empty = False
 
     for line in log.split("\n"):
         if corig in line:
@@ -37,11 +70,14 @@ def read_picolog(log):
             cstr = line[line.find(cassig_by)+len(cassig_by):line.find(end_clause)]
             literals = [Lit(int(i)) for i in cstr.split()]
             reasons.append(reason(lit, level, Clause(literals)))
+            lit2lvl[lit] = level
+            lit2lvl[-lit] = level
         elif cconfl in line:
             cstr = line[line.find(cconfl)+len(cconfl):line.find(end_clause)]
             literals = [Lit(int(i)) for i in cstr.split()]
             conflict = Clause(literals)
             tconfl = 2
+            numconflicts += 1
         elif clearn in line and tconfl == 1:
             cstr = line[line.find(clearn)+len(clearn):line.find(end_clause)]
             literals = [Lit(int(i)) for i in cstr.split()]
@@ -49,27 +85,67 @@ def read_picolog(log):
             genclause = conflict
 
             trail = []
+            resolved_lits = []
             for r in reversed(reasons):
-                if not genclause.can_resolve(r.clause):
+
+                rlits = genclause.resolution_lits(r.clause)
+                if r.lit not in rlits and -r.lit not in rlits:
                     continue
 
                 genclause = genclause.resolve(r.clause, r.lit)
                 # don't need to score empty clause
                 if genclause != Clause([]):
                     trail.append(genclause)
+                    resolved_lits.append(r.lit)
+                else:
+                    derived_empty = True
                 if genclause == lc:
+                    matchlearned += 1
                     break
+                if genclause in clauses:
+                    matchorig += 1
+                    break
+                # if len(list(filter(lambda l: False if l not in lit2lvl else lit2lvl[l] == dl, genclause._literals))) == 1:
+                #     print("breaking because last literal at dl = {}".format(dl))
+                #     break
+
+            # debugging
+            # print("lc", lc)
+            # print("genclause", genclause)
+            # if Clause([Lit(-522), Lit(-544)]) == lc:
+            #     for i in reversed(range(len(trail))):
+            #         print("l", resolved_lits[i], "t", trail[i])
+            # end debugging
 
             learned_clauses += trail
+        elif clvl in line:
+            idxmap[dl] = len(reasons)
+            dl += 1
+            assert dl == int(line[line.find(clvl)+len(clvl):]), "dl: {}, {}".format(dl, line)
+        elif cbt in line:
+            dl = int(line[line.find(cbt)+len(cbt):])
+            if dl < 0:
+                break
+
+            reasons = reasons[:idxmap[dl]]
+            assert all([r.level <= dl for r in reasons]), "dl: {}\n{}".format(dl, reasons)
 
         if tconfl > 0:
             tconfl -= 1
 
-    return clauses, learned_clauses
+    # pack stats
+    stats = {"matchlearned": matchlearned,
+             "matchorig": matchorig,
+             "numconflicts": numconflicts,
+             "derived_empty": derived_empty
+            }
+
+    return clauses, learned_clauses, stats
 
 
-parser = argparse.ArgumentParser(description='Read Picosat log file for resolution proof data')
+parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
 parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
+parser.add_argument('--tracecheck', action="store_true", metavar='<INPUT_FILE>', help='Parse tracecheck file')
 
 args = parser.parse_args()
 
@@ -82,7 +158,12 @@ with open(input_file) as f:
 
 assert log is not None
 
-clauses, learned_clauses = read_picolog(log)
+if args.tracecheck:
+    learned_clauses, resolvent_parents = read_tracecheck(log)
+else:
+    clauses, learned_clauses, stats = read_picolog(log)
 
-print("clauses", clauses)
-print("learned_clauses", learned_clauses)
+    print("# clauses", len(clauses))
+    print("# learned_clauses", len(learned_clauses))
+    for n, s in stats.items():
+        print(n, s)

@@ -106,7 +106,7 @@ class Clause:
             assert -lit in other_clause._literals, "Expecting a valid resolution"
         else:
             assert lit in other_clause._literals, "Expecting a valid resolution"
-            assert -lit in self._literals, "Expecting a valid resolution"
+            assert -lit in self._literals, "Expecting a valid resolution, {}: {} - {}".format(lit, other_clause, self,)
             lit = -lit
 
         sl = list(self._literals)

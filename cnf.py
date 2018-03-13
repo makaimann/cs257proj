@@ -29,6 +29,7 @@ def read_trans(trans):
     normnode2literal = {}
     literal2node = {}
     clauses = []
+
     for line in trans.split("\n"):
         if "BITVECTOR_EAGER_ATOM" in line:
             line = line.replace("(BITVECTOR_EAGER_ATOM ", "")
@@ -63,6 +64,8 @@ def read_trans(trans):
 
 def read_clauses(trans):
     addclause = "Add clause clause: "
+
+    clauses = []
 
     numlits = 0
     for line in trans.split("\n"):
