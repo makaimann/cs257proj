@@ -123,6 +123,34 @@ class Clause:
         for l in self._literals:
             l.remove_clause(self)
 
+    def feature_form(self, num_lits):
+        '''
+        Transform to data representation.
+        As a feature, this gives <num_lits> of the literals in the clause
+        If the clause has less literals than <num_lits> fill the extra slots with zeros
+        And it appends the size of the (original) clause
+        '''
+        features = None
+        literals = list(self._literals)
+        mid = int(num_lits/2)
+        if len(literals) < num_lits:
+            features = literals
+            features += [0]*(num_lits - len(literals))
+        else:
+            # don't want to bias towards just negative values (because literals are always sorted)
+            # Thus take from the beginning and end
+            if num_lits%2 == 0:
+                features = literals[:mid] + literals[-mid:]
+            else:
+                features = literals[:mid+1] + literals[-mid:]
+
+        features.append(len(self._literals))
+
+        assert features is not None
+        assert len(features) == num_lits + 1
+
+        return features
+
     def __str__(self):
         return ' '.join([str(l) for l in self._literals])
 
