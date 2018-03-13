@@ -16,6 +16,8 @@ def read_tracecheck(resproof):
     learned_clauses = []
     resolvent_parents = []
     for line in resproof.split('\n'):
+        if len(line.strip()) < 2:
+            continue
         s1 = line.find(' ')
         _id = int(line[:s1])
         line = line[s1+1:]
@@ -25,8 +27,9 @@ def read_tracecheck(resproof):
         resolvent = Clause([Lit(int(rl)) for rl in rlits])
         clausemap[_id] = resolvent
         if ' 0 0' not in line:
-            parent_ids = line[z1+1:z2].split()
-            parents = tuple([clausemap[int(i) for i in parent_ids]])
+            parent_ids = [int(i) for i in line[z1+1:z2].split()]
+            parent_ids = list(filter(lambda x: x != 0, parent_ids))
+            parents = tuple([clausemap[i] for i in parent_ids])
             learned_clauses.append(resolvent)
             resolvent_parents.append(parents)
     return learned_clauses, resolvent_parents
@@ -145,7 +148,7 @@ def read_picolog(log):
 
 parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
 parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
-parser.add_argument('--tracecheck', action="store_true", metavar='<INPUT_FILE>', help='Parse tracecheck file')
+parser.add_argument('--tracecheck', action="store_true", help='Parse tracecheck file')
 
 args = parser.parse_args()
 
@@ -160,6 +163,10 @@ assert log is not None
 
 if args.tracecheck:
     learned_clauses, resolvent_parents = read_tracecheck(log)
+    for rp in resolvent_parents:
+        assert len(rp) == 2
+        p1, p2 = rp
+        assert p1.can_resolve(p2), "Expecting to be able to resolve parents but have {}, {}".format(p1, p2)
 else:
     clauses, learned_clauses, stats = read_picolog(log)
 
