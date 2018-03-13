@@ -32,10 +32,16 @@ def read_trans(trans):
 
     for line in trans.split("\n"):
         if "BITVECTOR_EAGER_ATOM" in line:
-            line = line.replace("(BITVECTOR_EAGER_ATOM ", "")
-            idx = line.rfind(")")
-            # remove extra parenthesis
-            line = line[:idx] + line[idx+1:]
+            # It seems like BITVECTOR_EAGER_ATOMs do not appear in final CNF
+            # which is good because they duplicate other bitblasted literals
+            # e.g. for fifo_b3 there are two mappings between variables and
+            # the literal 6. But the non BITVECTOR_EAGER_ATOM is the one that
+            # is used in clauses
+            continue
+            # line = line.replace("(BITVECTOR_EAGER_ATOM ", "")
+            # idx = line.rfind(")")
+            # # remove extra parenthesis
+            # line = line[:idx] + line[idx+1:]
 
         if newlit in line and point in line:
             node = line[line.find(newlit)+len(newlit):line.find(point)]
@@ -107,12 +113,17 @@ with open(input_file) as f:
 
 if cnf_trans:
 
-    _, normnode2literal, _ = read_trans(trans)
+    node2literal, normnode2literal, _ = read_trans(trans)
 
     with open(output_file, "w") as f:
-        for n, l in normnode2literal.items():
-            f.write(n + ": " + str(l))
+        for n, l in node2literal.items():
+            norm_node, _ = normal_form(n)
+            f.write(str(l) +  " ")
+            f.write(str(normnode2literal[norm_node]))
             f.write("\n")
+        # for n, l in node2literal.items():
+        #     f.write(n + ": " + str(l))
+        #     f.write("\n")
 
         f.close()
 
