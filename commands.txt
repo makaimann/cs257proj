@@ -1,0 +1,10 @@
+./cvc4_master --bitblast=eager -d cnf <benchmark>.smt2 &> <benchmark>.map
+./cvc4_master --bitblast=eager -d sat::minisat <bencmark>.smt2 &> <benchmark>.out
+./cnf.py --cnf-trans <benchmark>.map litmap
+./cnf.py <benchmark>.out <benchmark>.dimacs
+
+picosat -T <benchmark>.trace <benchmark>.dimacs
+tracecheck -B <benchmark>.proof <benchmark.trace>
+./proc_data.py --tracecheck <benchmark>.proof
+
+# produces data file named data.arff
