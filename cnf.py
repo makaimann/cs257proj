@@ -100,12 +100,15 @@ parser = argparse.ArgumentParser(description='Read CNF from CVC4 Output')
 parser.add_argument('input_file', metavar='<INPUT_FILE>', help='The file to read containing CVC4 -d cnf-trans or --bitblast=eager -d sat::minisat (eager bitblasting is vital)')
 parser.add_argument('output_file', metavar='<OUTPUT_FILE>', help='The file to write DIMACs to', default="out.dimacs")
 parser.add_argument('--cnf-trans', action='store_true', dest="cnf_trans", help='Read CVC4 cnf-trans output')
+parser.add_argument('--nominal', action='store_true', dest="nominal", help='Use these normalized literals as the nominal form')
 
 args = parser.parse_args()
 
 input_file = args.input_file
 output_file = args.output_file
 cnf_trans = args.cnf_trans
+
+nominal_name = "nominal.map"
 
 with open(input_file) as f:
     trans = f.read()
@@ -115,12 +118,35 @@ if cnf_trans:
 
     node2literal, normnode2literal, _ = read_trans(trans)
 
+    # save this normal form
+    if args.nominal:
+        with open(nominal_name, "w") as f:
+            for n, l in normnode2literal.items():
+                f.write(n + " => " + str(l) + "\n")
+            f.close()
+
+        nominal_lit = normnode2literal
+    else:
+        try:
+            nominal_lit = {}
+            with open(nominal_name) as f:
+                lines = f.read()
+                for line in lines.split("\n"):
+                    if len(line) < 2:
+                        continue
+                    vals = line.split(" => ")
+                    assert len(vals) == 2, "vals={}".format(vals)
+                    node_name, lit_int = vals
+                    nominal_lit[node_name] = int(lit_int)
+        except FileNotFoundError:
+            print("Need to run with --nominal first to produce {}".format(nominal_name))
+
     with open(output_file, "w") as f:
         for n, l in node2literal.items():
             norm_node, bounds = normal_form(n)
             min_bnd, max_bnd = bounds
             f.write(str(l) +  " ")
-            f.write(str(normnode2literal[norm_node]) + " ")
+            f.write(str(nominal_lit[norm_node]) + " ")
             f.write(str(min_bnd) + " " + str(max_bnd))
             f.write("\n")
         f.close()

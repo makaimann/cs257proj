@@ -1,5 +1,12 @@
 ./cvc4_master --bitblast=eager -d cnf <benchmark>.smt2 &> <benchmark>.map
 ./cvc4_master --bitblast=eager -d sat::minisat <bencmark>.smt2 &> <benchmark>.out
+
+# only run this command once per circuit
+# creates a nominal mapping from normalized node names to literals
+# don't want that to change between runs
+# can't count on unordered data structures to always produce same literals
+./cnf.py --cnf-trans --nominal <benchmark>.map litmap
+
 ./cnf.py --cnf-trans <benchmark>.map litmap
 ./cnf.py <benchmark>.out <benchmark>.dimacs
 
