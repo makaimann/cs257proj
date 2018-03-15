@@ -169,7 +169,6 @@ class Node:
         self._data = data
 
         if len(parents) > 0:
-            assert len(parents) == 2
             for p in parents:
                 assert isinstance(p, Node)
             self._parents = parents
