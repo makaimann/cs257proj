@@ -144,8 +144,8 @@ def score_clauses(root, orig_clauses, clausecnt):
     for k, v in scores.items():
         # add the bias to make positive and the number of times it appears in the proof
         # hoping that clauses used more often are more useful
-        scores[k] = v + bias + clausecnt[k]
-        # scores[k] = v + bias
+        # scores[k] = v + bias + clausecnt[k]
+        scores[k] = v + bias
 
     # give all the original clauses a score of 0
     # this might overwrite a previous score
