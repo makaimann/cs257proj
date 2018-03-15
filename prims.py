@@ -152,7 +152,10 @@ class Clause:
         return features
 
     def __str__(self):
-        return ' '.join([str(l) for l in self._literals])
+        if len(self._literals) == 0:
+            return "phi"
+        else:
+            return ' '.join([str(l) for l in self._literals])
 
     def __repr__(self):
         return self.__str__()
@@ -162,19 +165,20 @@ class Node:
     '''
     Represents a node in the resolution refutation DAG
     '''
-    def __init__(self, data, parents, child):
+    def __init__(self, data, parents, children):
         self._data = data
 
-        if parents is not None:
+        if len(parents) > 0:
             assert len(parents) == 2
             for p in parents:
                 assert isinstance(p, Node)
+            self._parents = parents
 
-        if child is not None:
+        if len(children) > 0:
             assert isinstance(child, Node)
 
         self._parents = parents
-        self._children = [child]
+        self._children = children
 
     @property
     def parents(self):
@@ -190,3 +194,8 @@ class Node:
 
     def add_child(self, c):
         self._children.append(c)
+
+    def __repr__(self):
+        return "<Node: data={}, parents={}, children={}>".format(self._data,
+                                                                 [p.data for p in self._parents],
+                                                                 [c.data for c in self._children])

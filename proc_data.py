@@ -4,6 +4,60 @@ import argparse
 from prims import Lit, Clause, Node
 from collections import namedtuple, defaultdict
 
+litmap_name="litmap" # name of file that stores mapping between literals and literals x min_bnd x max_bnd
+NUM_LITS = 10
+
+def processed_form(clause, litmap):
+    '''
+    Normalizes a clause using the litmap file produces with cnf
+    '''
+    newlits = [litmap[l].lit for l in clause._literals]
+    # the smallest bound is the clauses' minimum
+    min_bnd = min([litmap[l].min_bnd for l in clause._literals])
+    # the largest bound is the clauses' maximum
+    max_bnd = max([litmap[l].max_bnd for l in clause._literals])
+    return Clause(newlits), (min_bnd, max_bnd)
+
+def write_data(output, litmap, clauses, scores):
+    for c in clauses:
+        if c not in scores:
+            # couldn't trace it to the empty clause but showed up in trace file anyway
+            # use as a bad example
+            scores[c] = 0
+
+        if c == Clause([]):
+            # it's the empty clause!
+            # got a great score, but can't learn much from it :P
+            continue
+
+        score = scores[c]
+        processed_clause, bounds = processed_form(c, litmap)
+        min_bnd, max_bnd = bounds
+        features = processed_clause.feature_form(NUM_LITS)
+        features += [min_bnd, max_bnd]
+        features = [str(f) for f in features]
+        output.write(", ".join(features) + ", " + str(score) + "\n")
+
+def read_litmap():
+    litmap = {}
+    litinfo = namedtuple("litinfo", "lit min_bnd max_bnd")
+    with open(litmap_name) as f:
+        lines = f.read()
+        f.close()
+
+    for line in lines.split("\n"):
+        if len(line) < 2:
+            continue
+        in_lit, out_lit, min_bnd, max_bnd = line.split()
+        li = litinfo(Lit(int(out_lit)), int(min_bnd), int(max_bnd))
+        litmap[Lit(int(in_lit))] = li
+
+        # kind of wasteful but adding negations as separate pair
+        negli = litinfo(Lit(-int(out_lit)), int(min_bnd), int(max_bnd))
+        litmap[-Lit(int(in_lit))] = negli
+
+    return litmap
+
 def read_tracecheck(resproof):
     marker = ' 0 '
     clausemap = {}
@@ -36,7 +90,7 @@ def read_tracecheck(resproof):
 
             # add resolvent if needed
             if resolvent not in clause2node:
-                clause2node[resolvent] = Node(resolvent, node_parents, None)
+                clause2node[resolvent] = Node(resolvent, node_parents, [])
 
             for n in node_parents:
                 n.add_child(clause2node[resolvent])
@@ -45,10 +99,49 @@ def read_tracecheck(resproof):
                 emptyclausenode = clause2node[resolvent]
         else:
             # this is a leaf
-            clause2node[resolvent] = Node(resolvent, None, None)
+            clause2node[resolvent] = Node(resolvent, [], [])
+
+    orig_clauses = set(clausemap.values()) - set(learned_clauses)
 
     assert emptyclausenode is not None
-    return learned_clauses, clause2node, emptyclausenode
+    return learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt
+
+def score_clauses(root, orig_clauses, clausecnt):
+    scores = {}
+    scores[root.data] = 0
+    node_list = list(root.parents)
+
+    min_score = 0
+
+    for n in node_list:
+        processed_children = list(filter(lambda x: x.data in scores, n.children))
+        assert len(processed_children) > 0, "Should have at least one processed child"
+
+        s = max([scores[c.data] for c in processed_children]) - 1
+        scores[n.data] = s
+
+        if s < min_score:
+            min_score = s
+
+        # only add parents that haven't already been processed
+        # the maximum score is kept (which is the first one received)
+        node_list += list(filter(lambda x: x.data not in scores, n.parents))
+
+    assert len(scores) > 1000, "Just checking that scores is reasonably sized"
+    bias = -min_score
+
+    # adjust the scores to be positive
+    for k, v in scores.items():
+        # add the bias to make positive and the number of times it appears in the proof
+        # hoping that clauses used more often are more useful
+        scores[k] = v + bias + clausecnt[k]
+
+    # give all the original clauses a score of 0
+    # this might overwrite a previous score
+    for c in orig_clauses:
+        scores[c] = 0
+
+    return scores
 
 def read_picolog(log):
     reason = namedtuple("reason", "lit level clause")
@@ -178,12 +271,23 @@ with open(input_file) as f:
 assert log is not None
 
 if args.tracecheck:
-    learned_clauses, clause2node, emptyclausenode = read_tracecheck(log)
+    litmap = read_litmap()
+
+    learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_tracecheck(log)
+
+    # Check for valid resolution proof
     for n in clause2node.values():
-        if n.parents is not None:
+        if len(n.parents) > 0:
             assert len(n.parents) == 2
             p1, p2 = n.parents
             assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
+
+    # score each of the clauses
+    scores = score_clauses(emptyclausenode, orig_clauses, clausecnt)
+
+    with open("data.arff", "w") as output_file:
+        write_data(output_file, litmap, clause2node, scores)
+
 else:
     clauses, learned_clauses, stats = read_picolog(log)
 

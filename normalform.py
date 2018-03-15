@@ -22,7 +22,7 @@ def normal_form(name):
 
     fstr = re.sub(timestr, '_AT%d', name)
     fstr = re.sub('BVSKOLEM\$\$_\d+', 'BVSKOLEM$$_norm', fstr)
-    return fstr%tuple(ntimes), max_time
+    return fstr%tuple(ntimes), (min_time, max_time)
 
 if __name__ == "__main__":
     n1 = "wrPtr__AT0"

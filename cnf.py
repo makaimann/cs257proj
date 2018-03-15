@@ -117,14 +117,12 @@ if cnf_trans:
 
     with open(output_file, "w") as f:
         for n, l in node2literal.items():
-            norm_node, _ = normal_form(n)
+            norm_node, bounds = normal_form(n)
+            min_bnd, max_bnd = bounds
             f.write(str(l) +  " ")
-            f.write(str(normnode2literal[norm_node]))
+            f.write(str(normnode2literal[norm_node]) + " ")
+            f.write(str(min_bnd) + " " + str(max_bnd))
             f.write("\n")
-        # for n, l in node2literal.items():
-        #     f.write(n + ": " + str(l))
-        #     f.write("\n")
-
         f.close()
 
 else:
