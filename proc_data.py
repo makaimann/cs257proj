@@ -19,6 +19,14 @@ def processed_form(clause, litmap):
     return Clause(newlits), (min_bnd, max_bnd)
 
 def write_data(output, litmap, clauses, scores):
+    output.write("@RELATION BMC\n\n")
+    for l in range(NUM_LITS):
+        output.write("@ATTRIBUTE lit{} NUMERIC\n".format(l))
+    output.write("@ATTRIBUTE csize NUMERIC\n")
+    output.write("@ATTRIBUTE min_bnd NUMERIC\n")
+    output.write("@ATTRIBUTE max_bnd NUMERIC\n")
+    output.write("@ATTRIBUTE score REAL\n\n")
+    output.write("@DATA\n")
     for c in clauses:
         if c not in scores:
             # couldn't trace it to the empty clause but showed up in trace file anyway
@@ -130,11 +138,14 @@ def score_clauses(root, orig_clauses, clausecnt):
     assert len(scores) > 1000, "Just checking that scores is reasonably sized"
     bias = -min_score
 
+    print("Depth of proof is {}".format(bias))
+
     # adjust the scores to be positive
     for k, v in scores.items():
         # add the bias to make positive and the number of times it appears in the proof
         # hoping that clauses used more often are more useful
         scores[k] = v + bias + clausecnt[k]
+        # scores[k] = v + bias
 
     # give all the original clauses a score of 0
     # this might overwrite a previous score
