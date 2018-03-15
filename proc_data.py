@@ -66,14 +66,14 @@ def read_litmap():
 
     return litmap
 
-def read_tracecheck(resproof):
+def read_trace(trace):
     marker = ' 0 '
     clausemap = {}
     clausecnt = defaultdict(int) # keeps track of times it appears in resolution proof
     learned_clauses = []
     clause2node = {}
     emptyclausenode = None
-    for line in resproof.split('\n'):
+    for line in trace.split('\n'):
         if len(line.strip()) < 2:
             continue
         s1 = line.find(' ')
@@ -113,6 +113,7 @@ def read_tracecheck(resproof):
 
     assert emptyclausenode is not None
     return learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt
+
 
 def score_clauses(root, orig_clauses, clausecnt):
     scores = {}
@@ -268,7 +269,8 @@ def read_picolog(log):
 
 parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
 parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
-parser.add_argument('--tracecheck', action="store_true", help='Parse tracecheck file')
+parser.add_argument('--resproof', action="store_true", help='Parse tracecheck output resolution proof file')
+parser.add_argument('--trace', action="store_true", help='Parse SAT solvers trace file')
 
 args = parser.parse_args()
 
@@ -281,17 +283,18 @@ with open(input_file) as f:
 
 assert log is not None
 
-if args.tracecheck:
+if args.resproof or args.trace:
     litmap = read_litmap()
 
-    learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_tracecheck(log)
+    learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
 
-    # Check for valid resolution proof
-    for n in clause2node.values():
-        if len(n.parents) > 0:
-            assert len(n.parents) == 2
-            p1, p2 = n.parents
-            assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
+    if args.resproof:
+        # Check for valid resolution proof
+        for n in clause2node.values():
+            if len(n.parents) > 0:
+                assert len(n.parents) == 2
+                p1, p2 = n.parents
+                assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
 
     # score each of the clauses
     scores = score_clauses(emptyclausenode, orig_clauses, clausecnt)
