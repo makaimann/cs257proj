@@ -1,38 +1,54 @@
 #!/usr/bin/env python3
 
 import argparse
-from prims import Lit, Clause
-from collections import namedtuple
-
-# def read_proof(log):
-#     for line in log.split("\n"):
-#         if line[-3:] == "0 0":
-#             pass
-#         # TODO finish this function
+from prims import Lit, Clause, Node
+from collections import namedtuple, defaultdict
 
 def read_tracecheck(resproof):
     marker = ' 0 '
     clausemap = {}
+    clausecnt = defaultdict(int) # keeps track of times it appears in resolution proof
     learned_clauses = []
-    resolvent_parents = []
+    clause2node = {}
+    emptyclausenode = None
     for line in resproof.split('\n'):
         if len(line.strip()) < 2:
             continue
         s1 = line.find(' ')
         _id = int(line[:s1])
-        line = line[s1+1:]
+        line = line[s1:]
         z1 = line.find(marker)
         z2 = line[z1+len(marker):].find(marker)
         rlits = line[:z1].split()
         resolvent = Clause([Lit(int(rl)) for rl in rlits])
         clausemap[_id] = resolvent
+        clausecnt[resolvent] += 1
         if ' 0 0' not in line:
             parent_ids = [int(i) for i in line[z1+1:z2].split()]
             parent_ids = list(filter(lambda x: x != 0, parent_ids))
             parents = tuple([clausemap[i] for i in parent_ids])
+            for p in parents:
+                clausecnt[p] += 1
+                assert p in clause2node, "Expecting parents to have already been processed"
+
+            node_parents = tuple([clause2node[p] for p in parents])
             learned_clauses.append(resolvent)
-            resolvent_parents.append(parents)
-    return learned_clauses, resolvent_parents
+
+            # add resolvent if needed
+            if resolvent not in clause2node:
+                clause2node[resolvent] = Node(resolvent, node_parents, None)
+
+            for n in node_parents:
+                n.add_child(clause2node[resolvent])
+
+            if resolvent == Clause([]):
+                emptyclausenode = clause2node[resolvent]
+        else:
+            # this is a leaf
+            clause2node[resolvent] = Node(resolvent, None, None)
+
+    assert emptyclausenode is not None
+    return learned_clauses, clause2node, emptyclausenode
 
 def read_picolog(log):
     reason = namedtuple("reason", "lit level clause")
@@ -162,11 +178,12 @@ with open(input_file) as f:
 assert log is not None
 
 if args.tracecheck:
-    learned_clauses, resolvent_parents = read_tracecheck(log)
-    for rp in resolvent_parents:
-        assert len(rp) == 2
-        p1, p2 = rp
-        assert p1.can_resolve(p2), "Expecting to be able to resolve parents but have {}, {}".format(p1, p2)
+    learned_clauses, clause2node, emptyclausenode = read_tracecheck(log)
+    for n in clause2node.values():
+        if n.parents is not None:
+            assert len(n.parents) == 2
+            p1, p2 = n.parents
+            assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
 else:
     clauses, learned_clauses, stats = read_picolog(log)
 

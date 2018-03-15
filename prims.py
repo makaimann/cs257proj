@@ -156,3 +156,37 @@ class Clause:
 
     def __repr__(self):
         return self.__str__()
+
+
+class Node:
+    '''
+    Represents a node in the resolution refutation DAG
+    '''
+    def __init__(self, data, parents, child):
+        self._data = data
+
+        if parents is not None:
+            assert len(parents) == 2
+            for p in parents:
+                assert isinstance(p, Node)
+
+        if child is not None:
+            assert isinstance(child, Node)
+
+        self._parents = parents
+        self._children = [child]
+
+    @property
+    def parents(self):
+        return self._parents
+
+    @property
+    def children(self):
+        return self._children
+
+    @property
+    def data(self):
+        return self._data
+
+    def add_child(self, c):
+        self._children.append(c)
