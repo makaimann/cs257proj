@@ -131,7 +131,7 @@ class Clause:
         And it appends the size of the (original) clause
         '''
         features = None
-        literals = list(self._literals)
+        literals = list([l._i for l in self._literals])
         mid = int(num_lits/2)
         if len(literals) < num_lits:
             features = literals

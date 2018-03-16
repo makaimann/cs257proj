@@ -12,6 +12,6 @@
 
 picosat -T <benchmark>.trace <benchmark>.dimacs
 tracecheck -B <benchmark>.proof <benchmark.trace>
-./proc_data.py --tracecheck <benchmark>.proof
+./proc_data.py --resproof <benchmark>.proof
 
 # produces data file named data.arff

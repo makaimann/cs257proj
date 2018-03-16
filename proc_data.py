@@ -3,9 +3,19 @@
 import argparse
 from prims import Lit, Clause, Node
 from collections import namedtuple, defaultdict
+import bisect
 
 litmap_name="litmap" # name of file that stores mapping between literals and literals x min_bnd x max_bnd
 NUM_LITS = 10
+
+def normalize_score(N, l):
+    assert N <= max(l)
+    incr = float(max(l))/N
+    boundaries = [None]*N
+    for i in range(N):
+        boundaries[i] = incr*(i+1)
+
+    return [bisect.bisect_left(boundaries, li) for li in l]
 
 def processed_form(clause, litmap):
     '''
@@ -155,6 +165,14 @@ def score_clauses(root, orig_clauses, clausecnt):
 
     return scores
 
+def binary_labels(orig_clauses, learned_clauses):
+    labels = {}
+    for c in orig_clauses:
+        labels[c] = 0
+    for c in learned_clauses:
+        labels[c] = 1
+    return labels
+
 def read_picolog(log):
     reason = namedtuple("reason", "lit level clause")
     corig = "c original "
@@ -267,45 +285,46 @@ def read_picolog(log):
     return clauses, learned_clauses, stats
 
 
-parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
-parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
-parser.add_argument('--resproof', action="store_true", help='Parse tracecheck output resolution proof file')
-parser.add_argument('--trace', action="store_true", help='Parse SAT solvers trace file')
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
+    parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
+    parser.add_argument('--resproof', action="store_true", help='Parse tracecheck output resolution proof file')
+    parser.add_argument('--trace', action="store_true", help='Parse SAT solvers trace file')
 
-args = parser.parse_args()
+    args = parser.parse_args()
 
-input_file = args.input_file
+    input_file = args.input_file
 
-log = None
-with open(input_file) as f:
-    log = f.read()
-    f.close()
+    log = None
+    with open(input_file) as f:
+        log = f.read()
+        f.close()
 
-assert log is not None
+    assert log is not None
 
-if args.resproof or args.trace:
-    litmap = read_litmap()
+    if args.resproof or args.trace:
+        litmap = read_litmap()
 
-    learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
+        learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
 
-    if args.resproof:
-        # Check for valid resolution proof
-        for n in clause2node.values():
-            if len(n.parents) > 0:
-                assert len(n.parents) == 2
-                p1, p2 = n.parents
-                assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
+        # if args.resproof:
+        #     # Check for valid resolution proof
+        #     for n in clause2node.values():
+        #         if len(n.parents) > 0:
+        #             assert len(n.parents) == 2
+        #             p1, p2 = n.parents
+        #             assert p1.data.can_resolve(p2.data), "Expecting to be able to resolve parents but have {}, {}".format(p1.data, p2.data)
 
-    # score each of the clauses
-    scores = score_clauses(emptyclausenode, orig_clauses, clausecnt)
+        # score each of the clauses
+        scores = score_clauses(emptyclausenode, orig_clauses, clausecnt)
 
-    with open("data.arff", "w") as output_file:
-        write_data(output_file, litmap, clause2node, scores)
+        with open("data.arff", "w") as output_file:
+            write_data(output_file, litmap, clause2node, scores)
 
-else:
-    clauses, learned_clauses, stats = read_picolog(log)
+    else:
+        clauses, learned_clauses, stats = read_picolog(log)
 
-    print("# clauses", len(clauses))
-    print("# learned_clauses", len(learned_clauses))
-    for n, s in stats.items():
-        print(n, s)
+        print("# clauses", len(clauses))
+        print("# learned_clauses", len(learned_clauses))
+        for n, s in stats.items():
+            print(n, s)
