@@ -4,6 +4,7 @@ import argparse
 from prims import Lit, Clause, Node
 from collections import namedtuple, defaultdict
 import bisect
+import sys
 
 litmap_name="litmap" # name of file that stores mapping between literals and literals x min_bnd x max_bnd
 NUM_LITS = 10
@@ -86,11 +87,22 @@ def read_litmap():
 def read_trace(trace):
     marker = ' 0 '
     clausemap = {}
-    clausecnt = defaultdict(int) # keeps track of times it appears in resolution proof
+    # Not using clausecnt for now
+    # clausecnt = defaultdict(int) # keeps track of times it appears in resolution proof
     learned_clauses = []
-    clause2node = {}
     emptyclausenode = None
-    for line in trace.split('\n'):
+
+    tidx = 0
+    lines = trace.split('\n')
+    total_lines = float(len(lines))
+    for line in lines:
+        # update screen progress
+        if tidx % 1000 == 0:
+            sys.stdout.write("\r" + "%.1f%% processed "%(100*tidx/total_lines))
+            sys.stdout.flush()
+        tidx += 1
+        # end screen progress
+
         if len(line.strip()) < 2:
             continue
         s1 = line.find(' ')
@@ -100,39 +112,47 @@ def read_trace(trace):
         z2 = line[z1+len(marker):].find(marker)
         rlits = line[:z1].split()
         resolvent = Clause([Lit(int(rl)) for rl in rlits])
-        clausemap[_id] = resolvent
-        clausecnt[resolvent] += 1
+        # clausecnt[resolvent] += 1
         if ' 0 0' not in line:
             parent_ids = [int(i) for i in line[z1+1:z2].split()]
             parent_ids = list(filter(lambda x: x != 0, parent_ids))
-            parents = tuple([clausemap[i] for i in parent_ids])
-            for p in parents:
-                clausecnt[p] += 1
-                assert p in clause2node, "Expecting parents to have already been processed"
+            node_parents = tuple([clausemap[i] for i in parent_ids])
+            # for p in parents:
+                # clausecnt[p] += 1
+                # Removing for performance reasons
+                # assert p in clause2node, "Expecting parents to have already been processed"
 
-            node_parents = tuple([clause2node[p] for p in parents])
             learned_clauses.append(resolvent)
 
             # add resolvent if needed
-            if resolvent not in clause2node:
-                clause2node[resolvent] = Node(resolvent, node_parents, [])
+            if _id not in clausemap:
+                clausemap[_id] = Node(resolvent, node_parents, [])
 
             for n in node_parents:
-                n.add_child(clause2node[resolvent])
+                n.add_child(clausemap[_id])
 
             if resolvent == Clause([]):
-                emptyclausenode = clause2node[resolvent]
+                emptyclausenode = clausemap[_id]
         else:
             # this is a leaf
-            clause2node[resolvent] = Node(resolvent, [], [])
+            if _id not in clausemap:
+                clausemap[_id] = Node(resolvent, [], [])
 
-    orig_clauses = set(clausemap.values()) - set(learned_clauses)
+    all_clauses = set(c.data for c in clausemap.values())
+
+    orig_clauses = all_clauses - set(learned_clauses)
 
     assert emptyclausenode is not None
-    return learned_clauses, set(clause2node.keys()), orig_clauses, emptyclausenode, clausecnt
+
+    # new line after progress update
+    print("")
+    return learned_clauses, all_clauses, orig_clauses, emptyclausenode, {}
 
 
 def score_clauses(root, orig_clauses, clausecnt):
+    if len(clausecnt) != 0:
+        raise NotImplementedError("Not using clausecnt. Need to add that functionality if needed")
+
     scores = {}
     scores[root.data] = 0
     node_list = list(root.parents)
@@ -180,116 +200,117 @@ def binary_labels(orig_clauses, learned_clauses):
         labels[c] = 1
     return labels
 
-def read_picolog(log):
-    reason = namedtuple("reason", "lit level clause")
-    corig = "c original "
-    cassig = "c assign "
-    cassig_at = " at level "
-    cassig_by = " by "
-    cconfl = "c conflict "
-    clearn = "c learned "
-    clvl = "c new level "
-    cbt  = "c back to level "
-    end_clause = " 0\n" # assuming at end of line
-    clauses = []
-    reasons = []
-    learned_clauses = []
-    lit2lvl = {}
+# deprecating
+# def read_picolog(log):
+#     reason = namedtuple("reason", "lit level clause")
+#     corig = "c original "
+#     cassig = "c assign "
+#     cassig_at = " at level "
+#     cassig_by = " by "
+#     cconfl = "c conflict "
+#     clearn = "c learned "
+#     clvl = "c new level "
+#     cbt  = "c back to level "
+#     end_clause = " 0\n" # assuming at end of line
+#     clauses = []
+#     reasons = []
+#     learned_clauses = []
+#     lit2lvl = {}
 
-    conflict = None # only process one conflict at a time
-    tconfl = 0
+#     conflict = None # only process one conflict at a time
+#     tconfl = 0
 
-    dl = 0
-    llidx = 0 # last level idx
-    idxmap = {0: 0} # need to keep track of previous llidx's
+#     dl = 0
+#     llidx = 0 # last level idx
+#     idxmap = {0: 0} # need to keep track of previous llidx's
 
-    matchlearned = 0
-    matchorig = 0
-    numconflicts = 0
-    derived_empty = False
+#     matchlearned = 0
+#     matchorig = 0
+#     numconflicts = 0
+#     derived_empty = False
 
-    for line in log.split("\n"):
-        if corig in line:
-            cstr = line[line.find(corig)+len(corig):line.find(end_clause)]
-            literals = [Lit(int(i)) for i in cstr.split()]
-            clauses.append(Clause(literals))
-        elif cassig in line and cassig_by in line:
-            lit = Lit(int(line[line.find(cassig)+len(cassig):line.find(cassig_at)]))
-            level = int(line[line.find(cassig_at)+len(cassig_at):line.find(cassig_by)])
-            cstr = line[line.find(cassig_by)+len(cassig_by):line.find(end_clause)]
-            literals = [Lit(int(i)) for i in cstr.split()]
-            reasons.append(reason(lit, level, Clause(literals)))
-            lit2lvl[lit] = level
-            lit2lvl[-lit] = level
-        elif cconfl in line:
-            cstr = line[line.find(cconfl)+len(cconfl):line.find(end_clause)]
-            literals = [Lit(int(i)) for i in cstr.split()]
-            conflict = Clause(literals)
-            tconfl = 2
-            numconflicts += 1
-        elif clearn in line and tconfl == 1:
-            cstr = line[line.find(clearn)+len(clearn):line.find(end_clause)]
-            literals = [Lit(int(i)) for i in cstr.split()]
-            lc = Clause(literals)
-            genclause = conflict
+#     for line in log.split("\n"):
+#         if corig in line:
+#             cstr = line[line.find(corig)+len(corig):line.find(end_clause)]
+#             literals = [Lit(int(i)) for i in cstr.split()]
+#             clauses.append(Clause(literals))
+#         elif cassig in line and cassig_by in line:
+#             lit = Lit(int(line[line.find(cassig)+len(cassig):line.find(cassig_at)]))
+#             level = int(line[line.find(cassig_at)+len(cassig_at):line.find(cassig_by)])
+#             cstr = line[line.find(cassig_by)+len(cassig_by):line.find(end_clause)]
+#             literals = [Lit(int(i)) for i in cstr.split()]
+#             reasons.append(reason(lit, level, Clause(literals)))
+#             lit2lvl[lit] = level
+#             lit2lvl[-lit] = level
+#         elif cconfl in line:
+#             cstr = line[line.find(cconfl)+len(cconfl):line.find(end_clause)]
+#             literals = [Lit(int(i)) for i in cstr.split()]
+#             conflict = Clause(literals)
+#             tconfl = 2
+#             numconflicts += 1
+#         elif clearn in line and tconfl == 1:
+#             cstr = line[line.find(clearn)+len(clearn):line.find(end_clause)]
+#             literals = [Lit(int(i)) for i in cstr.split()]
+#             lc = Clause(literals)
+#             genclause = conflict
 
-            trail = []
-            resolved_lits = []
-            for r in reversed(reasons):
+#             trail = []
+#             resolved_lits = []
+#             for r in reversed(reasons):
 
-                rlits = genclause.resolution_lits(r.clause)
-                if r.lit not in rlits and -r.lit not in rlits:
-                    continue
+#                 rlits = genclause.resolution_lits(r.clause)
+#                 if r.lit not in rlits and -r.lit not in rlits:
+#                     continue
 
-                genclause = genclause.resolve(r.clause, r.lit)
-                # don't need to score empty clause
-                if genclause != Clause([]):
-                    trail.append(genclause)
-                    resolved_lits.append(r.lit)
-                else:
-                    derived_empty = True
-                if genclause == lc:
-                    matchlearned += 1
-                    break
-                if genclause in clauses:
-                    matchorig += 1
-                    break
-                # if len(list(filter(lambda l: False if l not in lit2lvl else lit2lvl[l] == dl, genclause._literals))) == 1:
-                #     print("breaking because last literal at dl = {}".format(dl))
-                #     break
+#                 genclause = genclause.resolve(r.clause, r.lit)
+#                 # don't need to score empty clause
+#                 if genclause != Clause([]):
+#                     trail.append(genclause)
+#                     resolved_lits.append(r.lit)
+#                 else:
+#                     derived_empty = True
+#                 if genclause == lc:
+#                     matchlearned += 1
+#                     break
+#                 if genclause in clauses:
+#                     matchorig += 1
+#                     break
+#                 # if len(list(filter(lambda l: False if l not in lit2lvl else lit2lvl[l] == dl, genclause._literals))) == 1:
+#                 #     print("breaking because last literal at dl = {}".format(dl))
+#                 #     break
 
-            # debugging
-            # print("lc", lc)
-            # print("genclause", genclause)
-            # if Clause([Lit(-522), Lit(-544)]) == lc:
-            #     for i in reversed(range(len(trail))):
-            #         print("l", resolved_lits[i], "t", trail[i])
-            # end debugging
+#             # debugging
+#             # print("lc", lc)
+#             # print("genclause", genclause)
+#             # if Clause([Lit(-522), Lit(-544)]) == lc:
+#             #     for i in reversed(range(len(trail))):
+#             #         print("l", resolved_lits[i], "t", trail[i])
+#             # end debugging
 
-            learned_clauses += trail
-        elif clvl in line:
-            idxmap[dl] = len(reasons)
-            dl += 1
-            assert dl == int(line[line.find(clvl)+len(clvl):]), "dl: {}, {}".format(dl, line)
-        elif cbt in line:
-            dl = int(line[line.find(cbt)+len(cbt):])
-            if dl < 0:
-                break
+#             learned_clauses += trail
+#         elif clvl in line:
+#             idxmap[dl] = len(reasons)
+#             dl += 1
+#             assert dl == int(line[line.find(clvl)+len(clvl):]), "dl: {}, {}".format(dl, line)
+#         elif cbt in line:
+#             dl = int(line[line.find(cbt)+len(cbt):])
+#             if dl < 0:
+#                 break
 
-            reasons = reasons[:idxmap[dl]]
-            assert all([r.level <= dl for r in reasons]), "dl: {}\n{}".format(dl, reasons)
+#             reasons = reasons[:idxmap[dl]]
+#             assert all([r.level <= dl for r in reasons]), "dl: {}\n{}".format(dl, reasons)
 
-        if tconfl > 0:
-            tconfl -= 1
+#         if tconfl > 0:
+#             tconfl -= 1
 
-    # pack stats
-    stats = {"matchlearned": matchlearned,
-             "matchorig": matchorig,
-             "numconflicts": numconflicts,
-             "derived_empty": derived_empty
-            }
+#     # pack stats
+#     stats = {"matchlearned": matchlearned,
+#              "matchorig": matchorig,
+#              "numconflicts": numconflicts,
+#              "derived_empty": derived_empty
+#             }
 
-    return clauses, learned_clauses, stats
+#     return clauses, learned_clauses, stats
 
 
 if __name__ == "__main__":

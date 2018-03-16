@@ -52,7 +52,7 @@ class Lit(object):
         return str(self._i)
 
 class Clause:
-    def __init__(self, literals, normal=True, check=True):
+    def __init__(self, literals, normal=True, check=False):
         if not isinstance(literals, abc.Iterable):
             raise RuntimeError("Expecting iterable of literals")
 

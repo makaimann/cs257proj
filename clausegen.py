@@ -2,7 +2,7 @@ from prims import Clause, Lit
 import random
 from proc_data import read_trace, read_litmap
 
-def sample_resolvable_clause(clauses, max_iter=20):
+def sample_resolvable_clause(clauses, max_iter=50):
     lits = set()
     clauses = set(clauses)
     i = 0
