@@ -8,14 +8,21 @@ import bisect
 litmap_name="litmap" # name of file that stores mapping between literals and literals x min_bnd x max_bnd
 NUM_LITS = 10
 
-def normalize_score(N, l):
-    assert N <= max(l)
-    incr = float(max(l))/N
-    boundaries = [None]*N
-    for i in range(N):
-        boundaries[i] = incr*(i+1)
+def normalize_score(N, l, mode='int'):
+    if mode == 'int':
+        assert N <= max(l)
+        incr = float(max(l))/N
+        boundaries = [None]*N
+        for i in range(N):
+            boundaries[i] = incr*(i+1)
 
-    return [bisect.bisect_left(boundaries, li) for li in l]
+        return [bisect.bisect_left(boundaries, li) for li in l]
+    elif mode == 'float':
+        assert N <= max(l)
+        factor = float(max(l))/N
+        return [li/factor for li in l]
+    else:
+        raise RuntimeError("Unknown option: {}".format(mode))
 
 def processed_form(clause, litmap):
     '''
@@ -122,7 +129,7 @@ def read_trace(trace):
     orig_clauses = set(clausemap.values()) - set(learned_clauses)
 
     assert emptyclausenode is not None
-    return learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt
+    return learned_clauses, set(clause2node.keys()), orig_clauses, emptyclausenode, clausecnt
 
 
 def score_clauses(root, orig_clauses, clausecnt):
@@ -305,11 +312,11 @@ if __name__ == "__main__":
     if args.resproof or args.trace:
         litmap = read_litmap()
 
-        learned_clauses, clause2node, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
+        learned_clauses, clauses, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
 
         # if args.resproof:
         #     # Check for valid resolution proof
-        #     for n in clause2node.values():
+        #     for n in clauses.values():
         #         if len(n.parents) > 0:
         #             assert len(n.parents) == 2
         #             p1, p2 = n.parents
@@ -319,7 +326,7 @@ if __name__ == "__main__":
         scores = score_clauses(emptyclausenode, orig_clauses, clausecnt)
 
         with open("data.arff", "w") as output_file:
-            write_data(output_file, litmap, clause2node, scores)
+            write_data(output_file, litmap, clauses, scores)
 
     else:
         clauses, learned_clauses, stats = read_picolog(log)
