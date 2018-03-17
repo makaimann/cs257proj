@@ -91,6 +91,7 @@ def read_trace(trace):
     # clausecnt = defaultdict(int) # keeps track of times it appears in resolution proof
     learned_clauses = []
     emptyclausenode = None
+    num_lits = 0
 
     tidx = 0
     lines = trace.split('\n')
@@ -140,16 +141,26 @@ def read_trace(trace):
 
     all_clauses = set(c.data for c in clausemap.values())
 
-    orig_clauses = all_clauses - set(learned_clauses)
-
     assert emptyclausenode is not None
 
     # new line after progress update
     print("")
-    return learned_clauses, all_clauses, orig_clauses, emptyclausenode, {}
+    return learned_clauses, all_clauses, emptyclausenode, {}
 
+def read_dimacs(dimacs):
+    dimacs = dimacs.split("\n")
+    header = dimacs[0].split()
+    num_lits = int(header[2])
+    num_clauses = int(header[3])
+    clauses = set()
+    for line in dimacs[1:]:
+        if len(line) > 2:
+            lits = line.split()[:-1]
+            clauses.add(Clause([Lit(int(l)) for l in lits]))
 
-def score_clauses(root, orig_clauses, clausecnt):
+    return num_lits, num_clauses, clauses
+
+def score_clauses(root, unused_clauses, clausecnt):
     if len(clausecnt) != 0:
         raise NotImplementedError("Not using clausecnt. Need to add that functionality if needed")
 
@@ -187,14 +198,14 @@ def score_clauses(root, orig_clauses, clausecnt):
 
     # give all the original clauses a score of 0
     # this might overwrite a previous score
-    for c in orig_clauses:
+    for c in unused_clauses:
         scores[c] = 0
 
     return scores
 
-def binary_labels(orig_clauses, learned_clauses):
+def binary_labels(unused_clauses, learned_clauses):
     labels = {}
-    for c in orig_clauses:
+    for c in unused_clauses:
         labels[c] = 0
     for c in learned_clauses:
         labels[c] = 1
@@ -333,7 +344,7 @@ if __name__ == "__main__":
     if args.resproof or args.trace:
         litmap = read_litmap()
 
-        learned_clauses, clauses, orig_clauses, emptyclausenode, clausecnt = read_trace(log)
+        learned_clauses, clauses, emptyclausenode, clausecnt = read_trace(log)
 
         # if args.resproof:
         #     # Check for valid resolution proof

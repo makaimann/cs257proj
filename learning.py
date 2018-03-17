@@ -29,42 +29,52 @@ def calculate_misclassified(yp, yt):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Read Picosat log or tracecheck file for resolution proof data')
-    parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Picosat log file')
+    parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Proof or trace file')
+    parser.add_argument('dimacs_file', metavar='<DIMACS_FILE>', help='DIMACS file to read original clauses')
     parser.add_argument('--resproof', action="store_true", help='Parse tracecheck output resolution proof file')
     parser.add_argument('--trace', action="store_true", help='Parse SAT solvers trace file')
 
     args = parser.parse_args()
     input_file = args.input_file
+    dimacs_file = args.dimacs_file
 
     if args.resproof or args.trace:
 
         print("Reading litmap")
         litmap = pd.read_litmap()
 
+        f2 = open(dimacs_file)
+        dimacs = f2.read()
+        f2.close()
+
+        print("Reading dimacs file")
+        num_lits, num_clauses, orig_clauses = pd.read_dimacs(dimacs)
+
         f = open(input_file)
         trace = f.read()
         f.close()
 
         print("Reading trace file")
-        learned_clauses, clauses, orig_clauses, emptyclausenode, clausecnt = pd.read_trace(trace)
+        learned_clauses, clauses, emptyclausenode, clausecnt = pd.read_trace(trace)
         print("# Original Clauses = {}".format(len(orig_clauses)))
-        print("# Learned Clauses = {}".format(len(orig_clauses)))
+        print("# Learned Clauses = {}".format(len(learned_clauses)))
+
+        unused_clauses = orig_clauses - set(learned_clauses)
 
         # print("Generating binary labels")
         # scores = pd.binary_labels(orig_clauses, learned_clauses)
         print("Generating scores")
-        scores = pd.score_clauses(emptyclausenode, orig_clauses, clausecnt)
+        scores = pd.score_clauses(emptyclausenode, unused_clauses, clausecnt)
 
-        NRC = 3000
-        print("Generating {} random clauses and giving low scores".format(NRC))
-        new_clauses = generate_random_clauses(clauses, NRC)
-        new_clauses = new_clauses - set(learned_clauses) - set(orig_clauses)
-        print("Retaining {} of the generated clauses".format(len(new_clauses)))
+        # NRC = 3000
+        # print("Generating {} random clauses and giving low scores".format(NRC))
+        # new_clauses = generate_random_clauses(clauses, NRC)
+        # new_clauses = new_clauses - set(learned_clauses) - set(orig_clauses)
+        # print("Retaining {} of the generated clauses".format(len(new_clauses)))
+        # for nc in new_clauses:
+        #     scores[nc] = 0
 
-        for nc in new_clauses:
-            scores[nc] = 0
-
-        training_clauses = clauses.union(new_clauses)
+        training_clauses = clauses.union(unused_clauses)
 
         print("Processing data")
         # -1 because not using the empty clause which is in clauses

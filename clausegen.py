@@ -32,7 +32,12 @@ def generate_random_clauses(clauses, num):
         neglits = [-l for l in c._literals]
         lits = set(filter(lambda l: len(l._clauses) > 0, neglits))
         if len(lits) == 0:
-            c, oc, lit = sample_resolvable_clause(clauses)
+            try:
+                c, oc, lit = sample_resolvable_clause(clauses)
+            except RuntimeError:
+                print("Failed to sample any resolvable clauses. Continuing anyway.")
+                num -= 1
+                continue
         else:
             lit = random.sample(lits, 1)[0]
             oc = random.sample(set(lit._clauses), 1)[0]
@@ -40,6 +45,8 @@ def generate_random_clauses(clauses, num):
         new_clauses[idx] = c.resolve(oc, lit)
 
         idx += 1
+
+    new_clauses = filter(lambda x: x is not None, new_clauses)
 
     return set(new_clauses)
 
