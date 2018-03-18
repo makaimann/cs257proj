@@ -69,6 +69,9 @@ def write_data(output, litmap, clauses, scores):
 def read_litmap():
     litmap = {}
     litinfo = namedtuple("litinfo", "lit min_bnd max_bnd")
+
+    bound = 0
+
     with open(litmap_name) as f:
         lines = f.read()
         f.close()
@@ -77,14 +80,17 @@ def read_litmap():
         if len(line) < 2:
             continue
         in_lit, out_lit, min_bnd, max_bnd = line.split()
-        li = litinfo(Lit(int(out_lit)), int(min_bnd), int(max_bnd))
+        max_bnd = int(max_bnd)
+        if max_bnd > bound:
+            bound = max_bnd
+        li = litinfo(Lit(int(out_lit)), int(min_bnd), max_bnd)
         litmap[Lit(int(in_lit))] = li
 
         # kind of wasteful but adding negations as separate pair
         negli = litinfo(Lit(-int(out_lit)), int(min_bnd), int(max_bnd))
         litmap[-Lit(int(in_lit))] = negli
 
-    return litmap
+    return litmap, bound
 
 def read_trace(trace):
     marker = ' 0 '
@@ -371,7 +377,7 @@ if __name__ == "__main__":
     assert log is not None
 
     if args.resproof or args.trace:
-        litmap = read_litmap()
+        litmap, bound = read_litmap()
 
         learned_clauses, clauses, emptyclausenode, clausecnt = read_trace(log)
 

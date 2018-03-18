@@ -17,7 +17,6 @@ from scipy.sparse import lil_matrix, coo_matrix, csr_matrix, csc_matrix
 import proc_data as pd
 from prims import Clause, Lit
 import argparse
-from clausegen import generate_random_clauses
 
 NUM_FEAT_LITS = 10
 
@@ -48,7 +47,7 @@ if __name__ == "__main__":
     assert algo in {'SVC', 'SVR', 'KNR', 'MLPC', 'MLPR', 'GP', 'LR', 'ABC', 'RFC'}
 
     print("Reading litmap")
-    litmap = pd.read_litmap()
+    litmap, bound = pd.read_litmap()
 
     f2 = open(dimacs_file)
     dimacs = f2.read()
@@ -181,7 +180,7 @@ if __name__ == "__main__":
     yp = model.predict(X_test)
 
     if algo in {'SVC', 'MLPC', 'LR', 'ABC', 'RFC'}:
-        print("Classification Error = {}".format(calculate_misclassified(yp, y_test)))
+        print("Classification Error = {}%".format(calculate_misclassified(yp, y_test)))
     else:
         print("Error = {}".format(calculate_error(yp, y_test)))
 

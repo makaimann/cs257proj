@@ -23,8 +23,10 @@ class Lit(object):
             self._clauses.remove(c)
 
     def get_resolvable_clauses(self):
-        for c1, c2 in itertools.product(l._clauses, -l._clauses):
-            yield (c1, c2)
+        return itertools.product(self._clauses, (-self)._clauses)
+
+    def absl(self):
+        return Lit(abs(self._i))
 
     def __hash__(self):
         return self._i.__hash__()
@@ -75,6 +77,8 @@ class Clause:
                 if -l in self._literals:
                     self._taut = True
 
+        self._score = None
+
     @property
     def literals(self):
         return self._literals
@@ -82,6 +86,18 @@ class Clause:
     @property
     def taut(self):
         return self._taut
+
+    @property
+    def score(self):
+        return self._score
+
+    def add_score(self, score):
+        self._score = score
+
+    def __lt__(self, other):
+        # using in a min-heap
+        # but we actually want max, so reverse the order
+        return self._score > other._score
 
     def __neg__(self):
         '''
@@ -106,7 +122,7 @@ class Clause:
     def resolution_lits(self, other_clause):
         return set(self._literals) & set((-other_clause)._literals)
 
-    def resolve(self, other_clause, lit):
+    def resolve(self, other_clause, lit, check=False):
         if lit in self._literals:
             assert -lit in other_clause._literals, "Expecting a valid resolution"
         else:
@@ -118,7 +134,13 @@ class Clause:
         sl.remove(lit)
         ol = list(other_clause._literals)
         ol.remove(-lit)
-        return Clause(sl + ol)
+        return Clause(sl + ol, check=check)
+
+    def get_resol_clauses(self):
+        neglits = (-l for l in self._literals)
+        for nl in neglits:
+            for c in nl._clauses:
+                yield c, -nl
 
     def register(self):
         for l in self._literals:
