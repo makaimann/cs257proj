@@ -1,4 +1,5 @@
 from collections import abc
+import itertools
 
 class Lit(object):
     litmap = dict()
@@ -20,6 +21,10 @@ class Lit(object):
     def remove_clause(self, c):
         if c in self._clauses:
             self._clauses.remove(c)
+
+    def get_resolvable_clauses(self):
+        for c1, c2 in itertools.product(l._clauses, -l._clauses):
+            yield (c1, c2)
 
     def __hash__(self):
         return self._i.__hash__()

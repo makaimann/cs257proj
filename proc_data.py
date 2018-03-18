@@ -9,6 +9,8 @@ import sys
 litmap_name="litmap" # name of file that stores mapping between literals and literals x min_bnd x max_bnd
 NUM_LITS = 10
 
+animation = "|/-\\"
+
 def normalize_score(N, l, mode='int'):
     if mode == 'int':
         assert N <= max(l)
@@ -170,7 +172,19 @@ def score_clauses(root, unused_clauses, clausecnt):
 
     min_score = 0
 
+    # for progress animation
+    tidx = 0
+    aidx = 0
+
     for n in node_list:
+        # progress animation
+        if tidx % 10000 == 0:
+            sys.stdout.write("\r" + animation[aidx % len(animation)])
+            sys.stdout.flush()
+            aidx += 1
+        tidx += 1
+        # end progress animation
+
         processed_children = list(filter(lambda x: x.data in scores, n.children))
         assert len(processed_children) > 0, "Should have at least one processed child"
 
@@ -187,10 +201,18 @@ def score_clauses(root, unused_clauses, clausecnt):
     assert len(scores) > 1000, "Just checking that scores is reasonably sized"
     bias = -min_score
 
-    print("Depth of proof is {}".format(bias))
+    print("\nDepth of proof is {}".format(bias))
 
     # adjust the scores to be positive
     for k, v in scores.items():
+        # progress animation
+        if tidx % 1000 == 0:
+            sys.stdout.write("\r" + animation[aidx % len(animation)])
+            sys.stdout.flush()
+            aidx += 1
+        tidx += 1
+        # end progress animation
+
         # add the bias to make positive and the number of times it appears in the proof
         # hoping that clauses used more often are more useful
         # scores[k] = v + bias + clausecnt[k]
@@ -199,6 +221,13 @@ def score_clauses(root, unused_clauses, clausecnt):
     # give all the original clauses a score of 0
     # this might overwrite a previous score
     for c in unused_clauses:
+        # progress animation
+        if tidx % 1000 == 0:
+            sys.stdout.write("\r" + animation[aidx % len(animation)])
+            sys.stdout.flush()
+            aidx += 1
+        tidx += 1
+        # end progress animation
         scores[c] = 0
 
     return scores
