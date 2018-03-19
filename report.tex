@@ -368,7 +368,7 @@ KNN & One-hot literal & 26.528\%
 
 The runtimes in the results do not include the training time for the machine learning model. In my current implementation, the training time is slow because Python is slow manipulating the large number of clauses. A performant implementation in a faster language such as C++ would solve this issue. If this technique were actually applied, I would expect the learning to be done in a separate thread and we could always use additional GPUs to speed up the training time. Furthermore, in a real implementation, the training time should scale better than the SAT solving time as the bound increases.
 
-To compare performance, I generated $200,000$ clauses and kept the top $10\%$ of the scored, generated clauses. Table \ref{benchmark} shows the performance at a few increasing bounds. For each one, the model was trained on the previous bound and used to add resolvents of clauses involving literals from $bound-1$ to $bound+1$. In other words, only resolvents at the end of the unrolling were added.
+To compare performance, I generated $20,000$ clauses and kept the top $10\%$ of the scored, generated clauses. Table \ref{benchmark} shows the performance at a few increasing bounds. For each one, the model was trained on the previous bound and used to add resolvents of clauses involving literals from $bound-1$ to $bound+1$. In other words, only resolvents at the end of the unrolling were added.
 
 For these results, I used the machine learning model with the best accuracy, which was the KNN regressor.
 
