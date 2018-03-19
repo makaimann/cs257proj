@@ -325,7 +325,7 @@ All experiments were run on Ubuntu 16.04 running on an Intel(R) Core(TM) i7-6700
 
 \subsection{Machine Learning Accuracy}
 
-Tables \ref{acc-class} and \ref{acc-reg} show accuracy results of the various machine learning algorithms on a $10\%$ validation set removed from the original training data for the data integrity example unrolled to bound 10.
+Tables \ref{acc-class} and \ref{acc-reg} show accuracy results of the various machine learning algorithms on a $10\%$ validation set removed from the original training data for the data integrity example unrolled to bound 10.  I normalized the scores to be integers from 0 to 7.
 
 %\begin{table}[h!]
 \begin{table}[h!]
@@ -400,8 +400,7 @@ I would like to investigate my concerns about the KNN performance. This should b
 
 Additionally, this approach has used naive bounded model checking which creates a new SAT solver instance for each bound. The natural next step would be to score and generate clauses online and use the SAT solver incrementally.
 
-In general, I plan to evaluate this approach on more BMC examples, and at more bounds. If this approach continues to be promising after these additional experiments, I
-plan to reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
+In general, I plan to evaluate this approach more. Based on my experience thus far, the performance is fairly sensitive to the various parameters. I plan to spend some more time tuning these parameters and evaluating this technique at deeper bounds and on other examples. If this approach continues to be promising after these additional experiments, I will reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
 
 \section{Conclusion}
 
