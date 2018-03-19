@@ -6,7 +6,7 @@ from sklearn.model_selection import train_test_split
 from sklearn import svm
 from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.linear_model import LogisticRegression
-from sklearn.neighbors import KNeighborsRegressor
+from sklearn.neighbors import KNeighborsRegressor, KNeighborsClassifier
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.feature_selection import VarianceThreshold
 from sklearn.externals import joblib
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     parser.add_argument('input_file', metavar='<INPUT_FILE>', help='Proof or trace file')
     parser.add_argument('dimacs_file', metavar='<DIMACS_FILE>', help='DIMACS file to read original clauses')
     parser.add_argument('model_file', metavar='<MODEL_FILE>', help='Name of file to write model to')
-    parser.add_argument('algo', metavar='<ML ALGO>', help='Which ML algorithm to use. <SVC, SVR, KNR, MLPC, MLPR, GP, LR, ABC, RFC>.\nNote: Does not set hyper parameters')
+    parser.add_argument('algo', metavar='<ML ALGO>', help='Which ML algorithm to use. <SVC, SVR, KNC, KNR, MLPC, MLPR, GP, LR, ABC, RFC>.\nNote: Does not set hyper parameters')
     parser.add_argument('--ohl', action='store_true', help='Use one-hot literals as features')
 
     args = parser.parse_args()
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     model_filename = args.model_file
     algo = args.algo
 
-    assert algo in {'SVC', 'SVR', 'KNR', 'MLPC', 'MLPR', 'GP', 'LR', 'ABC', 'RFC'}
+    assert algo in {'SVC', 'SVR', 'KNC', 'KNR', 'MLPC', 'MLPR', 'GP', 'LR', 'ABC', 'RFC'}
 
     print("Reading litmap")
     litmap, bound = pd.read_litmap()
@@ -143,10 +143,13 @@ if __name__ == "__main__":
 
     if algo == 'SVC':
         print("Fitting a SVC")
-        model = svm.SVC(kernel='rbf', gamma='scale', C=2.0)
+        model = svm.SVC(kernel='rbf', gamma='scale', C=1.0)
     elif algo == 'SVR':
         print("Fitting a SVR")
-        model = svm.SVR(kernel='rbf', gamma='scale', C=2.0)
+        model = svm.SVR(kernel='rbf', gamma='scale', C=1.0)
+    elif algo == 'KNC':
+        print("Fitting a KNC")
+        model = KNeighborsClassifier(n_neighbors=10)
     elif algo == 'KNR':
         print("Fitting a KNR")
         model = KNeighborsRegressor(n_neighbors=10)
@@ -168,7 +171,7 @@ if __name__ == "__main__":
         print("Fitting Ada Boost Classifier")
         model = AdaBoostClassifier(n_estimators=200)
     elif algo == 'RFC':
-        print('Fitting RandomForestclassifier')
+        print('Fitting RandomForestClassifier')
         model = RandomForestClassifier(n_estimators=100)
     else:
         raise RuntimeError('Unhandled algo={}'.format(algo))
@@ -179,7 +182,7 @@ if __name__ == "__main__":
     # yp = model.predict(scaler.transform(X_test))
     yp = model.predict(X_test)
 
-    if algo in {'SVC', 'MLPC', 'LR', 'ABC', 'RFC'}:
+    if algo in {'SVC', 'KNC', 'MLPC', 'LR', 'ABC', 'RFC'}:
         print("Classification Error = {}%".format(calculate_misclassified(yp, y_test)))
     else:
         print("Error = {}".format(calculate_error(yp, y_test)))
