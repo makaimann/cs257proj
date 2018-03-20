@@ -30,9 +30,12 @@ class priqueue:
     def top(self, n):
         return heapq.nsmallest(n, self._l)
 
-    def keep(self, pc):
-        idx = int(len(self._l)*pc)
-        self._l = self._l[:idx]
+    def keep(self, idx):
+        if idx < len(self._l):
+            # deregister clauses -- don't want the bloat
+            for c in self._l[idx+1:]:
+                c.deregister()
+            self._l = self._l[:idx]
 
 def sample_resolvable_clause(clauses, max_iter=50):
     lits = set()
@@ -186,6 +189,7 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
     rlits = random.sample(literals, BURN_ITERS)
     burn_clauses = []
     feats = []
+    count = 0
     for rl in rlits:
         for c1, c2 in rl.get_resolvable_clauses():
             cr = c1.resolve(c2, rl, check=True)
@@ -193,6 +197,14 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
                 cr.register()
                 burn_clauses.append(cr)
                 feats.append(cr)
+                count += 1
+                # don't let this get too large
+                if count > 100*BURN_ITERS:
+                    print("Forcing exit")
+                    break
+        if count > 100*BURN_ITERS:
+            print("Forcing exit from outer loop")
+            break
 
     gen_scores = model.predict(model_processor(feats))
     for gs, cr in zip(gen_scores, burn_clauses):
@@ -200,6 +212,8 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
         gen_clauses.push(cr)
 
     del burn_clauses
+
+    gen_clauses.keep(50)
 
     print("Maximum score from burn_clauses was {}".format(max(gen_scores)))
 
@@ -214,12 +228,17 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
                 s = c.score
                 c2scores = []
                 feats = []
+                m = 0
                 for c2, l in c.get_resol_clauses():
                     cr = c.resolve(c2, l, check=True)
                     if not cr.taut:
                         c2scores.append(c2.score)
                         feats.append(cr)
-                gen_scores = model.predict(model_processor(feats))
+                    m += 1
+                    if m > 100:
+                        break
+                if len(feats) >= 1:
+                    gen_scores = model.predict(model_processor(feats))
                 for c2s, gs, cr in zip(c2scores, gen_scores, feats):
                     max_prev = max(s, c2s)
                     if gs >= max_prev:
@@ -234,12 +253,17 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
                 s = c.score
                 c2scores = []
                 feats = []
+                m = 0
                 for c2, l in c.get_resol_clauses():
                     cr = c.resolve(c2, l, check=True)
                     if not cr.taut:
                         c2scores.append(c2.score)
                         feats.append(cr)
-                gen_scores = model.predict(model_processor(feats))
+                    m += 1
+                    if m > 100:
+                        break
+                if len(feats) >= 1:
+                    gen_scores = model.predict(model_processor(feats))
                 for c2s, gs, cr in zip(c2scores, gen_scores, feats):
                     max_prev = max(s, c2s)
                     if gs >= max_prev:
@@ -281,6 +305,7 @@ if __name__ == "__main__":
     mp = gen_model_processor(litmap, num_lits, ohl=ohl)
 
     NUM = 20000
+    print("Generating {} resolvents".format(NUM))
     gen_clauses = gen_resolvents(model, orig_clauses, bound, mp, NUM, litmap, BURN_ITERS=1000)
 
     pc = 0.1
