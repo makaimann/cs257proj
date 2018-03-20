@@ -368,7 +368,9 @@ KNN & One-hot literal & 26.528\%
 
 The runtimes in the results do not include the training time for the machine learning model. In my current implementation, the training time is slow because Python is slow manipulating the large number of clauses. A performant implementation in a faster language such as C++ would solve this issue. If this technique were actually applied, I would expect the learning to be done in a separate thread and we could always use additional GPUs to speed up the training time. Furthermore, in a real implementation, the training time should scale better than the SAT solving time as the bound increases.
 
-To compare performance, I generated $20,000$ clauses and kept the top $10\%$ of the scored, generated clauses. Table \ref{benchmark} shows the performance at a few increasing bounds. For each one, the model was trained on the previous bound and used to add resolvents of clauses involving literals from $bound-1$ to $bound+1$. In other words, only resolvents at the end of the unrolling were added.
+To compare performance, I add high-scoring generated clauses to the DIMACs file of the current bound. This process starts with a "burn" phase in which $B$ literals are sampled and all possible resolvents (in one step) involving each literal are generated. Those resolvents are scored and added to a max-heap. I used $B=100$. Then, I repeatedly iterate over the $30$ highest scoring clauses. At each iteration, I add every possible resolvent producible by that clause (with the current clause database). The procedure terminates when the number of added (post-burn) clauses is greater than a user defined-value $N$. For example, at bound 21 I used $N=20,000$. 
+
+I also found it to be helpful to narrow the search towards the end. When it's close (about 90\% of the way) to $N$ clauses, start iterating only over the top $5$ clauses to hopefully discover "deep" resolvents. At the end, the top $10\%$ of the scored, generated clauses are appended to the DIMACs file. Table \ref{benchmark} shows the performance at a few increasing bounds. For each one, the model was trained on the previous bound and used to add resolvents of clauses involving literals from $bound-1$ to $bound+1$. In other words, only resolvents at the end of the unrolling were added.
 
 For these results, I used the machine learning model with the best accuracy, which was the KNN regressor.
 
@@ -392,7 +394,9 @@ Bound & Modified & Time (sec) \\
 
 Although it took some tuning, I was quite surprised at how accurate some of these machine learning models were even over this combinatorial feature space. That being said, the fact that KNNs were the most performant approach is a little bit concerning. Because KNN is just a voting scheme based on caching all the data, this makes me wonder if machine learning is even needed at all. Maybe the performance improvement could be achieved simply by adding the equivalent clauses at the next bound (as long as that clause cannot be traced back to the property in the resolution proof, which would be unsound). This will take more investigation to be sure about.
 
-Furthermore, it was encouraging that the performance improvements seemed to increase as the bound increased. This is in line with the intuition that a machine learning model is more useful as it has more data and that the deeper bounds might benefit more from pruning the search space. I hope to continue trying additional bounds and models, but the Python implementation starts to get prohibitively slow as the number of clauses increases.
+Furthermore, it is worth noting that the added clauses are often very similar. For example, in the most effective case, the FIFO at bound 21, all 2000 added clauses had two literals, one of which was the same in all of them. Similar clauses receive similar scores, so it makes intuitive sense why this happens. But at this point, it is unclear if this is desirable.
+
+Despite my reservations, it was encouraging that the performance improvements seemed to increase as the bound increased. This is in line with the intuition that a machine learning model is more useful as it has more data and that the deeper bounds might benefit more from pruning the search space. I hope to continue trying additional bounds and models, but the Python implementation starts to get prohibitively slow as the number of clauses increases.
 
 \section{Future Work}
 
@@ -400,7 +404,7 @@ I would like to investigate my concerns about the KNN performance. This should b
 
 Additionally, this approach has used naive bounded model checking which creates a new SAT solver instance for each bound. The natural next step would be to score and generate clauses online and use the SAT solver incrementally.
 
-In general, I plan to evaluate this approach more. Based on my experience thus far, the performance is fairly sensitive to the various parameters. I plan to spend some more time tuning these parameters and evaluating this technique at deeper bounds and on other examples. If this approach continues to be promising after these additional experiments, I will reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
+In general, I plan to evaluate this approach more. Based on my experience thus far, the performance is sensitive to the various parameters. I plan to spend some more time tuning these parameters and evaluating this technique at deeper bounds and on other examples. If this approach continues to be promising after these additional experiments, I will reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
 
 \section{Conclusion}
 
