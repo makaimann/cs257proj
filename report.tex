@@ -31,7 +31,7 @@ SAT-based bounded model checking (BMC) is a state of the art formal verification
 \end{abstract}
 
 \section{Introduction}
-\noindent As digital circuits become increasingly complex, more and more of the time to produce a new design is spent in verification and validation. Formal approaches such as hardware model checking have arised as a popular complement to simulation based testing for catching bugs (and even proving correctness) earlier in the design process. Formal tools can reason over the design symbolically, which circumvents the primary challenge of simulation-based testing: the exponentially growing input space. Despite the relative success and broad adoption of these techniques in industry, formal tools still face scaling issues on larger designs. To prevent security flaws such as Meltdown and Spectre, and to save chip design companies huge sums of money spent on preventing and mitigating bugs, it is vital to address the scaling concerns of formal tools.
+\noindent As digital circuits become increasingly complex, the time to produce a new design is increasingly spent in verification and validation. Formal approaches such as hardware model checking have arised as a popular complement to simulation based testing for catching bugs (and even proving correctness) earlier in the design process. Formal tools can reason over the design symbolically, which circumvents the primary challenges of simulation-based testing: the exponentially growing input space, and the dependence on hand-written tests. Despite the relative success and broad adoption of these techniques in industry, formal tools still face scaling issues on larger designs. To prevent security flaws such as Meltdown and Spectre, and to save chip design companies huge sums of money spent on preventing and mitigating bugs, it is vital to address the scaling concerns of formal tools.
 
 One of the most popular techniques is bounded model checking, which produces a bounded proof that a property holds. Typically, the bounded model checker iteratively increases the bound until it times out or finds a counter example trace. Intuitively, it seems that this sequence of calls to a formal solver might be related because each query is the same circuit unrolled over increasing time-steps. Therefore, it seems plausible that machine learning techniques could learn to guide the formal tool based on previous queries.
 
@@ -39,9 +39,9 @@ One of the most popular techniques is bounded model checking, which produces a b
 This paper assumes basic knowledge of propositional logic. Below, I will begin by setting up the hardware model checking problem, describe the details of SAT-based bounded model checking, and finish by reviewing SAT solver's interpretation as resolution theorem provers. All of these topics are important for understanding the learning portion of this report.
 
 \subsection{Hardware Model Checking}
-Hardware model checking regards a digital circuit written in a representation language such as Verilog or VHDL as a symbolic finite state machine. Given the circuit description, some environmental assumptions and a property in a temporal logic, the model checking problems determines if the property holds. For the context of this report, I restrict focus to safety properties -- that a bad state is not reachable. It has been shown that other types of properties, such as liveness (something good eventually happens) can be reduced to safety checking \cite{biere}. Figure \ref{hwmc} shows the typical hardware model checking structure.
+Hardware model checking regards a digital circuit written in a representation language such as Verilog or VHDL as a symbolic finite state machine. Given the circuit description, some environmental assumptions and a temporal logic property, the model checking problem is to determine if the property holds. For the context of this report, I restrict focus to safety properties -- that a bad state is not reachable. It has been shown that other types of properties, such as liveness (something good eventually happens) can be reduced to safety checking \cite{biere}. Figure \ref{hwmc} shows the typical hardware model checking structure.
 
-In the early days of model checking, explicit state techniques such as tableau methods were the focus. Since then, symbolic model checking has become the standard approach. Symbolic model checkers reason over sets of states as opposed to concrete states. SAT-based techniques encode the symbolic model checking problem into one or more SAT queries. This family of approaches includes algorithms which can definitely prove properties such as k-induction and property directed reachability, as well as bounded techniques such as bounded model checking, which can only find bugs. For many classes of circuits, bounded model checking is the fastest approach for finding obscure bugs.
+In the early days of model checking, explicit state techniques such as tableau methods were the focus. Since then, symbolic model checking has become the standard approach. Symbolic model checkers reason over sets of states as opposed to concrete states. SAT-based techniques encode the symbolic model checking problem into one or more SAT queries. This family of approaches includes algorithms which can definitively prove properties such as k-induction and property directed reachability, as well as bounded techniques such as bounded model checking, which can only find bugs. For many classes of circuits, bounded model checking is the fastest approach for finding obscure bugs.
 
 \begin{figure}[H]
 \begin{center}
@@ -57,10 +57,10 @@ In SAT-based bounded model checking, each bit of the circuit is given a SAT lite
 Formally, $M := <V, I, T>_k$ describes the SAT encoding at bound $k$. Where, 
 \begin{equation*}
 \begin{split}
-V &= \{B_0^{(0)} \dots B_{n}^{(0)} \dots B_{n}^{(k)}\} \text{, the SAT variables} \\
-I &= \text{The formula describing the initial state} \\
-T &= \text{The formula capturing the relation} \\
-&  \ \  \ \  \ \  \text{between current and next state elements}
+V &= \{B_0^{(0)} \dots B_{n}^{(0)} \dots B_{n}^{(k)}\} \textit{, the SAT variables} \\
+I &= \textit{The formula describing the initial state} \\
+T &= \textit{The formula capturing the relation} \\
+&  \ \  \ \  \ \  \textit{between current and next state elements}
 \end{split}
 \end{equation*}
 
@@ -80,7 +80,7 @@ T &= C_0^1 \oplus C_0^0 \wedge \\
 \end{equation*}
 This starts the counter at $00$ in the initial state and the transition relation evaluates to true exactly when the next state is the current state incremented by one. As $k$ increases, the transition relation is repeated for each pair of related states. This large propositional formula is then converted to conjunctive normal form (CNF) and passed to a SAT solver along with the negated property. A \textit{clause} refers to a disjunction of literals in CNF. A satisfiable result gives a model assignment which is a counter example trace. An unsatisfiable result means the property holds up until bound $k$.  
 
-Thus, in a typical bounded model checking run, there is a sequence of $k-1$ unsatisfiable queries to the SAT solver, after which there is either a timeout or one satisfiable query, in which case a bug is identified and the SAT model gives a counterexample trace. Thus, to speed up bounded model checking it behooves us to focus on unsatisfiable queries, because they make up the bulk of the effort. Furthermore, unsatisfiable queries are able to produce a lot of potentially useful data in the form of an unsat proof.
+Thus, in a typical bounded model checking run, there is a sequence of $k-1$ unsatisfiable queries to the SAT solver, after which there is either a timeout or one satisfiable query, in which case a bug is identified and the SAT model gives a counterexample trace. Therefore, to speed up bounded model checking it behooves us to focus on unsatisfiable queries, because they make up the bulk of the effort. Furthermore, unsatisfiable queries are able to produce a lot of potentially useful data in the form of an unsat proof.
 
 \subsection{SAT Solvers as Resolution Theorem Provers}
 
@@ -125,23 +125,23 @@ In practice, the representative literal is chosen arbitrarily as the first insta
 
 The normal form is important so that the machine learning algorithm does not have to recover temporal relations between these literals that is already known. This transformation is inspired by other symbolic model checking techniques such as Binary Decision Diagram techniques and Property Directed Reachability (PDR). Both of these approaches are based on fixpoint computations which iteratively calculate all reachable states over the transition relation without unrolling the circuit. Instead they only look at the current and next state abstractly. PDR in particular is similar to this normal form transformation in that it extends the trace length, but adds each new reachable state to the abstract representation.
 
-The normal form of a clause is simply the clause produced by mapping all of its literals to their normal form, and sorting them in ascending order. Sorting the literals in the clause ensures that a given clause has only one representation. This is important so that the learning algorithm can easily identify each clause without identifying that order of literals in the clause does not matter.
+The normal form of a clause is simply the clause produced by mapping all of its literals to their normal form, and sorting them in ascending order. Sorting the literals in the clause ensures that a given clause has only one representation. This is important so that the learning algorithm can easily identify each clause without inferring that order does not matter.
 
 \subsection{Features}
 
-Now that we have a normal form for each clause, they have to be represented as a vector of features for the learning algorithm. There are multiple representation approaches, two of which will be covered below.
+Now that we have a normal form for each clause, they have to be represented as feature vectors for the learning algorithms. There are multiple representation approaches, two of which will be covered below.
 
 \subsubsection{Sampled Literals}
 
-A clause can have an unbounded number of literals, making it impossible to represent every possible clause as a vector. One approach is to simply sample $N$ of the literals and include them as an integer representation, where $- := \neg$. This is based on the common input format DIMACs for SAT queries. Furthermore, in this approach, I also append the size of the original clause. Thus, the learning algorithm can infer a relation between clause size (since if $size > N$, only a subset of the literals are being used) and the score, if it exists.
+A clause can have an unbounded number of literals, making it impossible to represent every possible clause as a vector. One approach is to simply sample $N$ of the literals and include them as an integer representation, where $- := \neg$. This is based on the common input format DIMACs for SAT queries. To keep this deterministic, I arbitrarily decided to take half of the sampled literals from the beginning of the sorted (in ascending order based on integer values) clause and half from the end. I also append the size of the original clause, so the learning algorithm can infer a relation between clause size (since if $size > N$, only a subset of the literals are being used) and the score, if such a relation exists.
 
 \subsubsection{One-Hot Literals}
 
-Another possible representation of a clause is a "one-hot literal". In this context of this project, the number of possible literals, $M$, is known after computing the normal form. Thus we can form a vector $v$ of length $M$ for each clause. Again, we consider literals as integers and if the literal, $l$, appears in the clause, then $v_l \gets 1$. If the negated literal, $-l$ appears in the clause, then $v_{-l} \gets -1$. This one-hot approach has been shown to be successful in other classification problems.
+Another possible representation of a clause is a "one-hot literal". In the context of this project, the number of possible literals, $M$, is simply the number of unique SAT literals without unrolling. Equivalently, this is the number of unique normal form literals. Thus we can form a vector $v$ of length $M$ for each clause. Again, we consider literals as integers and if the literal, $l$, appears in the clause, then $v_l \gets 1$. If the negated literal, $-l$ appears in the clause, then $v_{-l} \gets -1$. This one-hot approach has been shown to be successful in other classification problems.
 
 \subsubsection{Bounds}
 
-Finally, I also include the minimum and maximum bounds represented in each clause as the last two elements of the feature vector. Although the normal form is important for ensuring that the learning algorithm can relate the signals over time, there could be interesting temporal information. Thus, including the bounds might help for learning temporal relations.
+Finally, I also include the minimum and maximum bounds represented in each clause as the last two elements of the feature vector. Although the normal form is important for ensuring that the learning algorithm does not have to infer temporal relationships over signals, there could still be interesting temporal information to learn. Thus, including the bounds might help infer structure.
 
 Using the example from earlier, the minimum and maximum bounds of a literal are:
 
@@ -183,16 +183,16 @@ A resolution proof can be represented as a DAG. Any clause from the original que
 \end{algorithmic}
 \end{algorithm} 
 
-Once all the clauses are scored, I have another procedure which groups the scores into $N$ categories. So if $N=8$, the maximum score is divided by $8$ and every score is then adjusted to be in $\{0, \dots, 7\}$. This allowed me to try various different magnitudes for the scores.
+Once all the clauses are scored, I have another procedure which groups the scores into $N$ categories. So if $N=8$,  every score is then adjusted to be in $\{0, \dots, 7\}$ based on increments of the maximum score divided by $8$. This allowed me to easily try various different score magnitudes.
 
 \subsubsection{Unsat Trace}
 In practice, I found that resolution proofs quickly became prohibitively large. For small unrolls the full resolution proof was nice for providing enough data to a learning algorithm, but in later bounds it was simply too large. In that case, the scoring procedure can be applied in exactly the same way to an antecedent graph produced by a SAT solver. The only difference here is that a node may have more than two parents.
 \subsubsection{Classification vs. Regression}
-In this case, the labels are always integers. From here, I could treat the learning as either a classification problem, where the output is always an integer (more broadly, a category) or a regression problem which can approximate with floating point numbers. My intuition is that a regression approach would be more effective and that I can use those scores only relative to the scores of other clauses. This could also help to guide the clause resolution step towards resolvents with higher scores. In practice, I also found that regression algorithms tended to be more accurate. This will be covered more in the results section.
+In this case, the labels are always integers. From here, I could treat the learning as either a classification problem, where the output is always an integer (more broadly, a category) or a regression problem which can approximate with floating point numbers. My intuition is that a regression approach would be easier to learn and more effective because the score values only matter relative to other scores. This could also help to guide the clause resolution step towards resolvents with higher scores at a finer-grained resolution. In practice, I also found that regression algorithms tended to be more accurate. This will be covered more in the results section.
 \section{Implementation}
-My implementation is primarily written in Python, but makes use of several C++ tools and libraries. The code is available on \url{https://github.com/makaimann/cs257proj}. Because of Github restrictions on file sizes, I did not include the compiled binary of CVC4 with debug symbols.
+My implementation is primarily written in Python, but makes use of several C++ tools and libraries. The code is available at \url{https://github.com/makaimann/cs257proj}. Because of Github restrictions on file sizes, I did not include binaries for the tools I used.
 \subsection{Toolflow}
-This project made use of several open source tools which allowed for easy prototyping. I provided some "glue" code, primarily in Python for connecting the various tools. The first goal was to take a design written in Verilog and produce a SAT BMC query, while also keeping track of the mapping between signals and SAT variables. The mapping is crucial for establishing the normal form discussed above. Figure \ref{toolflow} depicts the toolflow used in this project. Brown ovals represent representation formats and blue rectangles are tools.
+This project made use of several open source tools which allowed for quick prototyping. For the translation to SAT, I provided some "glue" code, primarily in Python for connecting the various tools. The first goal was to take a design written in Verilog and produce a SAT BMC query, while also keeping track of the mapping between signals and SAT variables. The mapping is crucial for establishing the normal form discussed above. Figure \ref{toolflow} depicts the toolflow used in this project. Brown ovals are representation formats and blue rectangles are tools.
 
 \begin{figure}
 \begin{center}
@@ -236,7 +236,7 @@ In Python I wrote classes for clauses, literals and DAG nodes. The clauses suppo
 
 I used the SAT solver Picosat to produce an antecedent graph trace file. Then, I used a tool called tracecheck, which is distributed with the Booleforce SAT solver to reconstruct a resolution proof from the trace file. 
 
-I also provided functions for parsing these text files into my Python representation of a resolution DAG (or antecedent graph). Then, each of the clauses are scored according to the procedure in Agorithm \ref{scoring}. Finally, a python function converts these clauses into either the sampled literal feature form or the one-hot literal feature form. At this point, I have a collection of feature vectors with their associated labels.
+I also provided functions for parsing these text files into my Python representation of a resolution DAG (or antecedent graph). Then, each of the clauses are scored according to the procedure in Agorithm \ref{scoring}. Finally, a Python function converts these clauses into either the sampled literal feature form or the one-hot literal feature form. At this point, I have a collection of feature vectors with their associated labels.
 
 \subsection{Learning Framework}
 
@@ -248,8 +248,8 @@ There are two main evaluation metrics used in this project. For regression algor
 
 \begin{equation*}
 \begin{split}
-\% MAE &= \frac{\Sigma_{y_{test}} abs(y_{test} - y_{predict})}{max\_score} \\
-\% misclassified &= \frac{\Sigma_{y_{test}} \textbf{1}[y_{test} != y_{predict}]}{\text{Number of test points}}
+\% MAE &= \frac{\Sigma_{y_{test}} abs(y_{test} - y_{predict})}{max\_score} \times 100\\
+\% misclassified &= \frac{\Sigma_{y_{test}} \textbf{1}[y_{test} != y_{predict}]}{\text{Number of test points}} \times 100
 \end{split}
 \end{equation*}
 
@@ -272,7 +272,7 @@ I tried the following algorithms in this project:
 
 \subsection{Applying the Model}
 
-Once there's a model which can be used to score clauses, I run Algorithm \ref{genclauses} (again implemented in Python) parameterized by $B$, the number of burn iterations, $N$, the desired number of clauses, and $p$ the percent of generated clauses to add. To help with this algorithm, I use a max-heap which keeps clauses sorted by their score. As can bee seen in line 13, this algorithm actually guides the clause resolution towards resolvents with higher scores by iterating over the top clauses and only keeping clauses with scores higher than their parents.
+Once there's a model which can be used to score clauses, I run Algorithm \ref{genclauses} (again implemented in Python) parameterized by $B$, the number of burn iterations, $N$, the desired number of clauses, and $p$ the percent of generated clauses to add. To help with this algorithm, I use a max-heap which keeps clauses sorted by their score. As can be seen in line 13, this algorithm actually guides the clause resolution towards resolvents with higher scores by iterating over the top clauses and only keeping clauses with scores higher than their parents.
 
 \begin{algorithm}
 \caption{Generate Clauses}\label{genclauses}
@@ -303,7 +303,7 @@ Once there's a model which can be used to score clauses, I run Algorithm \ref{ge
 
 \section{Experimental Setup}
 
-To evaluate the efficacy of scoring resolvents for speeding up BMC, I train a network on the unsat proof of a circuit unrolled to bound $k$. Then, read in the clauses for bound $k+1$, generate a bunch of resolvents guided by learned model. I add the highest-scored clauses back to the DIMACs file for bound $k+1$ (which is sound because clause resolution is always sound) and compare the solve times between the modified and original DIMACs.
+To evaluate the efficacy of scoring resolvents for speeding up BMC, I train a model on the unsat proof of a circuit unrolled to bound $k$. Then, a script reads in the clauses for bound $k+1$, and generates a bunch of resolvents guided by the learned model. I add the highest-scored clauses back to the DIMACs file for bound $k+1$ (which is sound because clause resolution is always sound) and compare the solve times between the modified and original DIMACs.
 
 \subsection{Case Study Benchmark}
 
@@ -366,9 +366,9 @@ KNN & One-hot literal & 26.528\%
 
 \subsection{BMC Performance on Case Study}
 
-The runtimes in the results do not include the training time for the machine learning model. In my current implementation, the training time is slow because Python is slow manipulating the large number of clauses. A performant implementation in a faster language such as C++ would solve this issue. If this technique were actually applied, I would expect the learning to be done in a separate thread and we could always use additional GPUs to speed up the training time. Furthermore, in a real implementation, the training time should scale better than the SAT solving time as the bound increases.
+The runtimes in the results do not include the training time for the machine learning model. In my current implementation, the training time is slow because Python is slow to manipulate the large number of clauses. A performant implementation in a faster language such as C++ would solve this issue. If this technique were actually applied, I would expect the learning to be done in a separate thread and we could always use additional GPUs to speed up the training time. Furthermore, in a real implementation, the training time should scale better than the SAT solving time as the bound increases.
 
-To compare performance, I add high-scoring generated clauses to the DIMACs file of the current bound. This process starts with a "burn" phase in which $B$ literals are sampled and all possible resolvents (in one step) involving each literal are generated. Those resolvents are scored and added to a max-heap. I used $B=100$. Then, I repeatedly iterate over the $30$ highest scoring clauses. At each iteration, I add every possible resolvent producible by that clause (with the current clause database). The procedure terminates when the number of added (post-burn) clauses is greater than a user defined-value $N$. For example, at bound 21 I used $N=20,000$. 
+To compare performance, I add high-scoring generated clauses to the DIMACs file of the current bound. This process starts with a "burn" phase in which $B$ literals are sampled and all possible resolvents (in one step) involving each literal are generated. Those resolvents are scored and added to a max-heap. I used $B=100$. Then, I repeatedly iterate over the $30$ highest scoring clauses. At each iteration, I add every possible resolvent producible by that clause (with the current clause database). The procedure terminates when the number of added (post-burn) clauses is greater than a user defined-value $N$. For example, at bound 21 I used $N=20,000$. See Algorithm \ref{genclauses} for pseudo-code.
 
 I also found it to be helpful to narrow the search towards the end. When it's close (about 90\% of the way) to $N$ clauses, start iterating only over the top $5$ clauses to hopefully discover "deep" resolvents. At the end, the top $10\%$ of the scored, generated clauses are appended to the DIMACs file. Table \ref{benchmark} shows the performance at a few increasing bounds. For each one, the model was trained on the previous bound and used to add resolvents of clauses involving literals from $bound-1$ to $bound+1$. In other words, only resolvents at the end of the unrolling were added.
 
@@ -379,12 +379,14 @@ For these results, I used the machine learning model with the best accuracy, whi
 \begin{tabular}{ c | c | c }
 Bound & Modified & Time (sec) \\
 \hline \\
-4 & No & \\
-4 & Yes & \\
-11 & No & \\
-11 & Yes & \\
-21 & No & \\
-21 & Yes & \\
+4 & No & 0.080\\
+4 & Yes & 0.077\\
+11 & No & 4.689\\
+11 & Yes & 4.293\\
+16 & No & 71.915\\
+16 & Yes & 58.742\\
+21 & No & 584.231\\
+21 & Yes & 332.113\\
 \end{tabular}
 \caption{Performance on Case Study}
 \label{benchmark}
@@ -394,9 +396,9 @@ Bound & Modified & Time (sec) \\
 
 Although it took some tuning, I was quite surprised at how accurate some of these machine learning models were even over this combinatorial feature space. That being said, the fact that KNNs were the most performant approach is a little bit concerning. Because KNN is just a voting scheme based on caching all the data, this makes me wonder if machine learning is even needed at all. Maybe the performance improvement could be achieved simply by adding the equivalent clauses at the next bound (as long as that clause cannot be traced back to the property in the resolution proof, which would be unsound). This will take more investigation to be sure about.
 
-Furthermore, it is worth noting that the added clauses are often very similar. For example, in the most effective case, the FIFO at bound 21, all 2000 added clauses had two literals, one of which was the same in all of them. Similar clauses receive similar scores, so it makes intuitive sense why this happens. But at this point, it is unclear if this is desirable.
+Furthermore, it is worth noting that the added clauses are often very similar. For example, in the most effective case, at bound 21, all 2000 added clauses had two literals, one of which was the same in all of them. Similar clauses receive similar scores, so it makes intuitive sense why this happens. But at this point, it is unclear if this is desirable.
 
-Despite my reservations, it was encouraging that the performance improvements seemed to increase as the bound increased. This is in line with the intuition that a machine learning model is more useful as it has more data and that the deeper bounds might benefit more from pruning the search space. I hope to continue trying additional bounds and models, but the Python implementation starts to get prohibitively slow as the number of clauses increases.
+Despite my reservations, it was encouraging that the performance improvements seemed to increase as the bound increased. At bound 4 the percentage improvement was 3.7\% but at bound 21 was 43.15\%. One contributing factor is just that larger runtimes mean there is more to improve on and less overhead in parsing. That being said, the increasing effectiveness is in line with the intuition that a machine learning model is more useful as it has more data and that the deeper bounds might benefit more from pruning the search space. I hope to continue trying additional bounds and models. For now, I was limited by the Python implementation, which starts to get prohibitively slow as the number of clauses increases.
 
 \section{Future Work}
 
@@ -404,11 +406,11 @@ I would like to investigate my concerns about the KNN performance. This should b
 
 Additionally, this approach has used naive bounded model checking which creates a new SAT solver instance for each bound. The natural next step would be to score and generate clauses online and use the SAT solver incrementally.
 
-In general, I plan to evaluate this approach more. Based on my experience thus far, the performance is sensitive to the various parameters. I plan to spend some more time tuning these parameters and evaluating this technique at deeper bounds and on other examples. If this approach continues to be promising after these additional experiments, I will reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
+In general, I plan to evaluate this approach more. Based on my experience thus far, the performance is very sensitive to the various parameters. I plan to spend some more time tuning these parameters and evaluating this technique at deeper bounds and on other examples. If this approach continues to be promising after these additional experiments, I will reimplement the learning and clause generation portion of the code base so that it is no longer the runtime bottleneck.
 
 \section{Conclusion}
 
-In conclusion, I have demonstrated promising results for incorporating learning into SAT-base bounded model checking. There is a lot of space for future work, and I believe after a few months of experimentation, I will know if this approach is practically applicable.
+In conclusion, I have demonstrated promising results for incorporating learning into SAT-based bounded model checking. There is a lot of space for future work, and I believe that after a few months of experimentation I will know if this approach is practically applicable.
 
 \section{Acknowledgements}
 
