@@ -1,0 +1,147 @@
+This file contains copy and pasted printouts from the terminal with some inlined comments/calculations
+
+time picosat fifo_4.dimacs
+s UNSATISFIABLE
+
+real	0m0.080s
+user	0m0.071s
+sys	0m0.008s
+
+time picosat fifo_4_knr.dimacs
+s UNSATISFIABLE
+
+real	0m0.077s
+user	0m0.077s
+sys	0m0.000s
+
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat fifo_11.dimacs 
+s UNSATISFIABLE
+
+real	0m4.689s
+user	0m4.677s
+sys	0m0.012s
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ ./clausegen.py ./models/fifo_10_knn_n10.pkl fifo_11.dimacs fifo_11_knr.dimacs
+Load model
+Reading litmap
+Reading dimacs file
+99.9% processed 
+Generating 10000 resolvents
+Maximum score from burn_clauses was 6.5
+0.0% processed Writing top 10.0% (50) clauses to file
+Max added clause score = 6.6
+Min added clause score = 6.5
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat fifo_11_knr.dimacs
+s UNSATISFIABLE
+
+real	0m4.293s
+user	0m4.281s
+sys	0m0.010s
+
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat fifo_16.dimacs
+s UNSATISFIABLE
+
+real	1m11.915s
+user	1m11.823s
+sys	0m0.008s
+
+./clausegen.py ./models/fifo_15_model_knr.pkl fifo_16.dimacs fifo_16_knr.dimacs
+Load model
+Reading litmap
+Reading dimacs file
+Generating 20000 resolvents
+Forcing exit
+Forcing exit from outer loop
+Maximum score from burn_clauses was 6.9
+0.0% processed Writing top 10.0% (2000) clauses to file
+Max added clause score = 6.9
+Min added clause score = 6.9
+
+Got better result with next run, updated clausegen
+
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ ./clausegen.py ./models/fifo_15_model_knr.pkl fifo_16.dimacs fifo_16_knr_updated.dimacs
+Load model
+Reading litmap
+Reading dimacs file
+Generating 20000 resolvents
+Forcing exit
+Forcing exit from outer loop
+Maximum score from burn_clauses was 7.0
+25.0% processed Writing top 10.0% (2000) clauses to file
+Max added clause score = 7.0
+Min added clause score = 7.0
+
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat fifo_16_knr_updated.dimacs
+s UNSATISFIABLE
+
+real	0m58.742s
+user	0m58.730s
+sys	0m0.012s
+
+13.172% performance increase
+
+./clausegen.py ./models/fifo_15_model_knr.pkl fifo_16.dimacs fifo_16_knr_deep.dimacs
+Load model
+Reading litmap
+Reading dimacs file
+Generating 20000 resolvents
+Forcing exit
+Forcing exit from outer loop
+Maximum score from burn_clauses was 7.0
+98.5% processed Trying to get deeper resolvents
+100.0% processed Writing top 10.0% (2000) clauses to file
+Max added clause score = 7.0
+Min added clause score = 7.0
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat fifo_16_knr_deep.dimacs 
+s UNSATISFIABLE
+
+real	1m0.582s
+user	1m0.567s
+sys	0m0.016s
+
+
+time picosat fifo_21.dimacs
+	s UNSATISFIABLE
+
+real	10m22.448s
+user	10m22.297s
+sys	0m0.076s
+
+time picosat fifo_21_ml.dimacs 
+s UNSATISFIABLE
+
+real	8m38.973s
+user	8m38.895s
+sys	0m0.032s
+
+16.6238% increase
+
+time picosat fifo_21_ml_deep.dimacs
+s UNSATISFIABLE
+
+real	5m55.652s
+user	5m55.634s
+sys	0m0.028s
+
+42.86% performance increase
+
+time picosat fifo_21_ml_deep_all.dimacs 
+s UNSATISFIABLE
+
+real	9m4.127s
+user	9m3.904s
+sys	0m0.192s
+
+
+Different run
+ time picosat fifo_21.dimacs 
+s UNSATISFIABLE
+
+real	9m44.231s
+user	9m44.013s
+sys	0m0.128s
+(fast) makai@makai-XPS-15-9550:~/repos/cs257proj$ time picosat ./results/fifo_21_ml_deep.dimacs 
+s UNSATISFIABLE
+
+real	5m33.113s
+user	5m32.586s
+sys	0m0.044s
