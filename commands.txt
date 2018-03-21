@@ -12,6 +12,12 @@
 
 picosat -T <benchmark>.trace <benchmark>.dimacs
 tracecheck -B <benchmark>.proof <benchmark.trace>
-./proc_data.py --resproof <benchmark>.proof
 
-# produces data file named data.arff
+# running the following produces data in a .arff file
+./proc_data.py <benchmark>.proof
+
+# For scikit-learn (which I ended up using)
+./learning.py <benchmark>.(trace | proof) <benchmark>.dimacs <model_name>.pkl <Algorithm>
+
+# Then generate clauses with
+./clausegen.py <model_name>.pkl <next bound dimacs file> <output file>
