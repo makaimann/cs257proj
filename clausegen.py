@@ -213,65 +213,78 @@ def gen_resolvents(model, clauses, bound, model_processor, num, litmap, BURN_ITE
 
     del burn_clauses
 
-    gen_clauses.keep(50)
+    gen_clauses.keep(1000)
 
     print("Maximum score from burn_clauses was {}".format(max(gen_scores)))
 
     n = 0
     while n < num:
-        if n % 1000 == 0:
+        if n % 100 == 0:
             sys.stdout.write("\r" + "%.1f%% processed "%(100*(float(n)/num)))
             sys.stdout.flush()
+        for c in gen_clauses.top(30):
+            if n % 100 == 0:
+                sys.stdout.write("\r" + "%.1f%% processed "%(100*(float(n)/num)))
+                sys.stdout.flush()
+            s = c.score
+            c2scores = []
+            feats = []
+            m = 0
+            for c2, l in c.get_resol_clauses():
+                cr = c.resolve(c2, l, check=True)
+                if not cr.taut:
+                    c2scores.append(c2.score)
+                    feats.append(cr)
+                m += 1
+                if m > 100:
+                    break
+            if len(feats) >= 1:
+                gen_scores = model.predict(model_processor(feats))
+            for c2s, gs, cr in zip(c2scores, gen_scores, feats):
+                max_prev = max(s, c2s)
+                if gs >= max_prev:
+                    cr.add_score(gs)
+                    gen_clauses.push(cr)
+                    n += 1
+                    if n == num:
+                        break
+            if n == num:
+                break
 
-        if float(n)/num < 0.9:
-            for c in gen_clauses.top(30):
-                s = c.score
-                c2scores = []
-                feats = []
-                m = 0
-                for c2, l in c.get_resol_clauses():
-                    cr = c.resolve(c2, l, check=True)
-                    if not cr.taut:
-                        c2scores.append(c2.score)
-                        feats.append(cr)
-                    m += 1
-                    if m > 100:
+    gen_clauses.keep(2000)
+
+    print("Trying to get deeper resolvents")
+    for i in range(10):
+        # try to get deeper resolvents
+        for c in gen_clauses.top(5):
+            if n % 100 == 0:
+                sys.stdout.write("\r" + "%.1f%% processed "%(100*(float(n)/num)))
+                sys.stdout.flush()
+            s = c.score
+            c2scores = []
+            feats = []
+            m = 0
+            for c2, l in c.get_resol_clauses():
+                cr = c.resolve(c2, l, check=True)
+                if not cr.taut:
+                    c2scores.append(c2.score)
+                    feats.append(cr)
+                m += 1
+                if m > 100:
+                    break
+            if len(feats) >= 1:
+                gen_scores = model.predict(model_processor(feats))
+            for c2s, gs, cr in zip(c2scores, gen_scores, feats):
+                max_prev = max(s, c2s)
+                if gs >= max_prev:
+                    cr.add_score(gs)
+                    gen_clauses.push(cr)
+                    n += 1
+                    if n == num + 5000:
                         break
-                if len(feats) >= 1:
-                    gen_scores = model.predict(model_processor(feats))
-                for c2s, gs, cr in zip(c2scores, gen_scores, feats):
-                    max_prev = max(s, c2s)
-                    if gs >= max_prev:
-                        cr.add_score(gs)
-                        gen_clauses.push(cr)
-                        n += 1
-                        if n == num:
-                            break
-        else:
-            # try to get deeper resolvents
-            for c in gen_clauses.top(5):
-                s = c.score
-                c2scores = []
-                feats = []
-                m = 0
-                for c2, l in c.get_resol_clauses():
-                    cr = c.resolve(c2, l, check=True)
-                    if not cr.taut:
-                        c2scores.append(c2.score)
-                        feats.append(cr)
-                    m += 1
-                    if m > 100:
-                        break
-                if len(feats) >= 1:
-                    gen_scores = model.predict(model_processor(feats))
-                for c2s, gs, cr in zip(c2scores, gen_scores, feats):
-                    max_prev = max(s, c2s)
-                    if gs >= max_prev:
-                        cr.add_score(gs)
-                        gen_clauses.push(cr)
-                        n += 1
-                        if n == num:
-                            break
+            if n == num + 5000:
+                break
+
     return gen_clauses
 
 
@@ -306,7 +319,7 @@ if __name__ == "__main__":
 
     NUM = 20000
     print("Generating {} resolvents".format(NUM))
-    gen_clauses = gen_resolvents(model, orig_clauses, bound, mp, NUM, litmap, BURN_ITERS=1000)
+    gen_clauses = gen_resolvents(model, orig_clauses, bound, mp, NUM, litmap, BURN_ITERS=2000)
 
     pc = 0.1
     new_clauses = gen_clauses.top(int(pc*NUM))
